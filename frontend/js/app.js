@@ -6,8 +6,10 @@ const App = {
     apiKeys: {}
   },
 
-  init() {
-    this.loadState();
+  isWails: typeof window.go !== 'undefined',
+
+  async init() {
+    await this.loadState();
     this.initDarkMode();
     Files.init();
     Editor.init();
@@ -16,27 +18,63 @@ const App = {
     this.updateCounts();
   },
 
-  loadState() {
-    try {
-      const saved = localStorage.getItem('modelfield-state');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        this.state.files = parsed.files || [];
-        this.state.apiKeys = parsed.apiKeys || {};
+  async loadState() {
+    if (this.isWails) {
+      try {
+        this.state.apiKeys = await window.go.main.App.GetAPIKeys() || {};
+        this.state.files = await window.go.main.App.GetFiles() || [];
+      } catch (e) {
+        console.warn('Failed to load state from Go:', e);
       }
-    } catch (e) {
-      console.warn('Failed to load state:', e);
+    } else {
+      try {
+        const saved = localStorage.getItem('modelfield-state');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          this.state.files = parsed.files || [];
+          this.state.apiKeys = parsed.apiKeys || {};
+        }
+      } catch (e) {
+        console.warn('Failed to load state:', e);
+      }
     }
   },
 
-  saveState() {
-    try {
-      localStorage.setItem('modelfield-state', JSON.stringify({
-        files: this.state.files,
-        apiKeys: this.state.apiKeys
-      }));
-    } catch (e) {
-      console.warn('Failed to save state:', e);
+  async saveState() {
+    if (this.isWails) {
+      try {
+        await window.go.main.App.SaveFiles(this.state.files);
+      } catch (e) {
+        console.warn('Failed to save files to Go:', e);
+      }
+    } else {
+      try {
+        localStorage.setItem('modelfield-state', JSON.stringify({
+          files: this.state.files,
+          apiKeys: this.state.apiKeys
+        }));
+      } catch (e) {
+        console.warn('Failed to save state:', e);
+      }
+    }
+  },
+
+  async saveAPIKeys() {
+    if (this.isWails) {
+      try {
+        await window.go.main.App.SaveAPIKeys(this.state.apiKeys);
+      } catch (e) {
+        console.warn('Failed to save API keys to Go:', e);
+      }
+    } else {
+      try {
+        localStorage.setItem('modelfield-state', JSON.stringify({
+          files: this.state.files,
+          apiKeys: this.state.apiKeys
+        }));
+      } catch (e) {
+        console.warn('Failed to save API keys:', e);
+      }
     }
   },
 

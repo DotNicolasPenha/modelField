@@ -1,0 +1,8 @@
+build/bin/
+build/linux/
+build/windows/
+build/darwin/
+*.exe
+*.dll
+*.so
+*.dylib

@@ -64,14 +64,14 @@ const Modals = {
     this.open('modal-settings');
   },
 
-  saveSettings() {
+  async saveSettings() {
     App.state.apiKeys = {
       openai: document.getElementById('api-openai')?.value.trim() || '',
       anthropic: document.getElementById('api-anthropic')?.value.trim() || '',
       google: document.getElementById('api-google')?.value.trim() || '',
       openrouter: document.getElementById('api-openrouter')?.value.trim() || ''
     };
-    App.saveState();
+    await App.saveAPIKeys();
     this.close('modal-settings');
     Notifications.show('Settings saved');
   },
