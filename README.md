@@ -58,7 +58,7 @@ functional in earlier versions and will be reconnected to live APIs.
 3. Write the spec in markdown
 4. Select models to run against
 
-![Model Selection](assets/images/prints/img3.png)
+![Model Selection](assets/images/prints/img1.png)
 
 5. Execute the run -- results appear in a chat modal with metrics
 
