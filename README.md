@@ -8,6 +8,8 @@ ModelField is a desktop app that lets you write spec files (markdown) and run th
 multiple AI models side by side. It provides a unified interface for prompt engineering,
 model comparison, and result tracking.
 
+![Main Interface](assets/images/prints/img5.png)
+
 ## Supported Platforms
 
 - Linux (amd64)
@@ -55,7 +57,13 @@ functional in earlier versions and will be reconnected to live APIs.
 2. Create a new spec file (or use a template)
 3. Write the spec in markdown
 4. Select models to run against
+
+![Model Selection](assets/images/prints/img3.png)
+
 5. Execute the run -- results appear in a chat modal with metrics
+
+![Model Results](assets/images/prints/img4.png)
+
 6. Compare outputs, track costs and token usage
 
 ## Build
