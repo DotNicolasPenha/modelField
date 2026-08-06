@@ -18,9 +18,9 @@ jobs:
           - os: windows-latest
             platform: windows
             goarch: amd64
-          - os: macos-latest
+          - os: macos-13
             platform: darwin
-            goarch: arm64
+            goarch: amd64
 
     runs-on: ${{ matrix.os }}
 
@@ -68,9 +68,9 @@ jobs:
         if: matrix.platform == 'darwin'
         working-directory: build/bin
         run: |
-          mv ModelField.app ModelField-darwin-arm64.app
-          zip -r ModelField-darwin-arm64.zip ModelField-darwin-arm64.app
-          rm -rf ModelField-darwin-arm64.app
+          mv ModelField.app ModelField-darwin-amd64.app
+          zip -r ModelField-darwin-amd64.zip ModelField-darwin-amd64.app
+          rm -rf ModelField-darwin-amd64.app
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -95,4 +95,4 @@ jobs:
           files: |
             ModelField-linux-amd64/ModelField-*
             ModelField-windows-amd64/ModelField-*
-            ModelField-darwin-arm64/ModelField-*
+            ModelField-darwin-amd64/ModelField-*
