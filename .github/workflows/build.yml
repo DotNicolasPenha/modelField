@@ -51,22 +51,33 @@ jobs:
 
       - name: Install Windows dependencies
         if: matrix.platform == 'windows'
-        run: choco install mingw -y
+        run: choco install mingw gcc -y
 
-      - name: Build
-        run: |
-          if [ "${{ matrix.platform }}" == "darwin" ]; then
-            wails build -platform darwin/universal -o ModelField-${{ matrix.platform }}-${{ matrix.goarch }}
-          else
-            wails build -o ModelField-${{ matrix.platform }}-${{ matrix.goarch }}
-          fi
+      - name: Build (Linux)
+        if: matrix.platform == 'linux'
+        run: wails build -o ModelField-linux-amd64
+
+      - name: Build (macOS)
+        if: matrix.platform == 'darwin'
+        run: wails build -o ModelField-darwin-arm64
+
+      - name: Build (Windows)
+        if: matrix.platform == 'windows'
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+        run: wails build -o ModelField-windows-amd64.exe
+
+      - name: List build output
+        shell: bash
+        run: ls -la build/bin/ 2>/dev/null || echo "build/bin not found"
 
       - name: Package macOS
         if: matrix.platform == 'darwin'
+        working-directory: build/bin
         run: |
-          cd build/bin
+          ls -la
           zip -r ModelField-darwin-arm64.zip ModelField-darwin-arm64.app
-          rm -rf ModelField-darwin-arm64.app
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -83,6 +94,9 @@ jobs:
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
+
+      - name: List downloaded files
+        run: find . -type f
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
