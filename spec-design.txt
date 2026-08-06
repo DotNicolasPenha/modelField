@@ -1,0 +1,648 @@
+Aurelius Design System (ADS) v2.0
+Human-Centered Minimal Interface System
+
+Uma linguagem visual para aplicações desktop e web focadas em produtividade, inteligência artificial e ferramentas profissionais.
+
+1. Filosofia
+O design deve desaparecer.
+
+A interface não deve competir com o usuário.
+
+Ela deve funcionar como uma extensão natural do pensamento e do trabalho.
+
+O usuário deve sentir:
+
+clareza;
+controle;
+velocidade;
+confiança;
+tranquilidade.
+
+A interface não deve parecer uma página web.
+
+Ela deve parecer um software instalado no computador.
+
+2. Princípios Fundamentais
+Quiet Interface
+
+A interface deve ser silenciosa.
+
+Evitar elementos visuais sem função.
+
+Não adicionar componentes apenas para preencher espaço.
+
+Content Before Chrome
+
+O conteúdo é o produto.
+
+A interface é apenas o ambiente.
+
+Prioridade:
+
+Conteúdo
+
+↓
+
+Ações
+
+↓
+
+Navegação
+
+↓
+
+Decoração
+
+Decoração deve ser praticamente inexistente.
+
+Spatial Design
+
+O espaço vazio é um componente.
+
+Separações devem acontecer principalmente através de:
+
+distância;
+alinhamento;
+ritmo visual.
+
+Não através de:
+
+bordas;
+caixas;
+sombras.
+Human Precision
+
+Precisão técnica com sensação humana.
+
+A interface deve parecer:
+
+profissional;
+acessível;
+amigável.
+
+Nunca:
+
+fria;
+robótica;
+corporativa demais.
+Invisible Hierarchy
+
+A hierarquia deve ser percebida naturalmente.
+
+Usar:
+
+tamanho;
+peso;
+espaçamento.
+
+Evitar:
+
+cores extras;
+caixas;
+divisores excessivos.
+Motion With Purpose
+
+Movimento deve explicar uma mudança.
+
+Nunca deve chamar atenção.
+
+3. Personalidade Visual
+
+Imagine um aplicativo usado por 8 horas todos os dias.
+
+Ele deve transmitir:
+
+Deve parecer:
+premium;
+calmo;
+preciso;
+confiável;
+organizado.
+Nunca parecer:
+jogo;
+dashboard SaaS genérico;
+aplicativo chamativo;
+interface experimental.
+4. Tipografia
+Fonte principal
+Manrope
+
+Uso:
+
+títulos;
+cabeçalhos;
+áreas principais.
+
+Características:
+
+amigável;
+moderna;
+sofisticada;
+excelente leitura.
+Fonte secundária
+Inter Tight
+
+Uso:
+
+menus;
+tabelas;
+arquivos;
+controles;
+informações pequenas.
+
+Características:
+
+compacta;
+precisa;
+funcional.
+Importação
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+5. Hierarquia Tipográfica
+Display
+40px
+
+Weight 600
+
+Uso:
+
+páginas principais.
+Heading 1
+32px
+
+Weight 600
+Heading 2
+24px
+
+Weight 600
+Heading 3
+18px
+
+Weight 600
+Body
+15px
+
+Weight 400
+Secondary
+14px
+
+Weight 400
+Caption
+12px
+
+Weight 500
+6. Sistema de Cores
+
+A interface utiliza somente preto e branco.
+
+Nenhuma cor decorativa.
+
+Light Mode
+Background
+#FFFFFF
+Primary Text
+#1D1D1F
+Secondary Text
+#6E6E73
+Muted Text
+#86868B
+Surface
+#F5F5F7
+Dark Mode
+Background
+#000000
+Primary Text
+#F5F5F7
+Secondary Text
+#A1A1A6
+Surface
+#1C1C1E
+7. Uso de Cor
+
+Regra:
+
+95% neutros
+
+5% contraste
+
+Não utilizar:
+
+gradientes;
+neon;
+cores vibrantes;
+indicadores coloridos permanentes.
+8. Layout
+Desktop First
+
+Estrutura:
+
+┌──────────────────────────────┐
+│                              │
+│ Sidebar       Workspace       │
+│                              │
+│                              │
+│                              │
+└──────────────────────────────┘
+9. Sidebar
+Características
+largura reduzida;
+sem fundo separado;
+sem cards;
+sem bordas fortes.
+
+Largura:
+
+220px
+
+Estrutura:
+
+Application Name
+
+
+Library
+
+Files
+
+Recent
+
+Favorites
+
+
+Workspace
+
+Projects
+
+Archive
+
+Estados:
+
+Normal:
+
+Texto secundário
+
+Hover:
+
+Background #F5F5F7
+
+Selecionado:
+
+Texto preto
+Background leve
+10. Espaçamento
+
+Sistema baseado em 8pt.
+
+Valores permitidos:
+
+4
+
+8
+
+12
+
+16
+
+24
+
+32
+
+48
+
+64
+
+96
+
+Nunca usar valores aleatórios.
+
+11. Radius
+
+Uso moderado.
+
+Small
+
+6px
+
+
+Medium
+
+8px
+
+
+Large
+
+12px
+
+Evitar:
+
+999px;
+botões totalmente arredondados;
+elementos em formato de cápsula.
+12. Bordas
+
+Bordas são exceções.
+
+Usar somente quando necessário.
+
+Permitido:
+
+inputs;
+separadores;
+tabelas.
+
+Cor:
+
+Light:
+
+#E5E5E7
+
+Dark:
+
+#2C2C2E
+
+Nunca usar:
+
+bordas grossas;
+múltiplas caixas;
+cartões aninhados.
+13. Cards
+
+Cards devem ser raros.
+
+Quando utilizados:
+
+Surface
+
+↓
+
+Espaço interno
+
+↓
+
+Conteúdo
+
+Não:
+
+Card
+
+↓
+
+Card
+
+↓
+
+Card
+14. Arquivos e Listas
+
+Preferir listas abertas.
+
+Exemplo:
+
+Documents
+
+
+project-spec.md        Today
+
+architecture.md        Yesterday
+
+database.sql           Aug 05
+
+Separação:
+
+espaço;
+alinhamento.
+
+Não usar:
+
+caixas individuais;
+ícones grandes;
+bordas em cada item.
+15. Inputs
+
+Características:
+
+Altura:
+
+40px
+
+Background:
+
+#F5F5F7
+
+Border:
+
+Somente no foco.
+
+Focus:
+
+mudança de contraste
+
+sem glow
+16. Botões
+
+Botões devem parecer ações naturais.
+
+Altura:
+
+38px - 42px
+
+Radius:
+
+8px
+
+Primary:
+
+Background:
+
+#1D1D1F
+
+Texto:
+
+#FFFFFF
+
+Hover:
+
+opacity -10%
+
+Pressed:
+
+scale(0.98)
+17. Floating Actions
+
+Botões flutuantes devem ser discretos.
+
+Exemplo:
+
+              Send
+
+Características:
+
+pequeno;
+limpo;
+sem sombra pesada.
+18. Ícones
+
+Biblioteca:
+
+Lucide Icons
+
+Configuração:
+
+Stroke:
+
+2px
+
+Tamanhos:
+
+16
+
+18
+
+20
+
+Nunca:
+
+misturar bibliotecas;
+usar ícones coloridos;
+usar emojis.
+19. Motion System
+
+Objetivo:
+
+Naturalidade.
+
+Duração:
+
+100ms
+
+150ms
+
+200ms
+
+Easing:
+
+cubic-bezier(.2,.8,.2,1)
+
+Permitido:
+
+fade;
+pequeno deslocamento;
+abertura suave.
+
+Proibido:
+
+bounce;
+rotação;
+zoom exagerado;
+animações longas.
+20. Responsividade
+
+Prioridade:
+
+Desktop
+
+↓
+
+Tablet
+
+↓
+
+Mobile
+
+Não remover funcionalidades.
+
+Adaptar:
+
+espaçamento;
+organização;
+navegação.
+21. Densidade
+
+A interface deve ser:
+
+Informação alta
+
++
+
+Espaço alto
+
+=
+
+Densidade confortável
+
+Evitar:
+
+telas vazias;
+excesso de cards;
+excesso de texto.
+22. Elementos Proibidos
+
+Nunca utilizar:
+
+Glassmorphism;
+Neomorphism;
+Gradientes decorativos;
+Glow;
+Neon;
+Sombras pesadas;
+Bordas excessivas;
+Cards para tudo;
+Ícones coloridos;
+Animações chamativas;
+Cores de destaque múltiplas;
+Cantos extremamente arredondados.
+23. Design Tokens
+:root {
+
+--background:#FFFFFF;
+
+--foreground:#1D1D1F;
+
+--secondary:#6E6E73;
+
+--muted:#86868B;
+
+--surface:#F5F5F7;
+
+--border:#E5E5E7;
+
+
+--font-display:"Manrope";
+
+--font-ui:"Inter Tight";
+
+
+--radius-sm:6px;
+
+--radius-md:8px;
+
+--radius-lg:12px;
+
+
+--space-1:4px;
+
+--space-2:8px;
+
+--space-3:12px;
+
+--space-4:16px;
+
+--space-5:24px;
+
+--space-6:32px;
+
+--space-7:48px;
+
+--space-8:64px;
+
+
+--ease:cubic-bezier(.2,.8,.2,1);
+
+}
+Princípio Final
+
+O objetivo não é criar uma interface que impressione no primeiro segundo.
+
+O objetivo é criar uma interface que continue parecendo excelente depois de milhares de horas de uso.
+
+Aurelius não tenta chamar atenção.
+
+Ele cria um ambiente onde o usuário consegue pensar, criar e trabalhar sem fricção.

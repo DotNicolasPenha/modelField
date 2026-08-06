@@ -1,0 +1,29 @@
+ModelField
+
+Objetivo: Um ambiente desktop para poder centralizar o orquestramento de arquivos de especificação e modelos de IA da openai, claude, gemini
+e open router. Por enquanto vai ser uma versão de demonstração web, com html, css e js puro, mas sem IA por enquanto, mas dá para fingir que tem IA.
+
+Observações: Utilizar a linguagem inglês em todo o site. Utilize apenas cores pretas e brancas e suas variações
+
+Design: ./spec-design
+
+Flow: Usuário configura api key. Usuário clica em criar arquivo md. Aparece um modal grande para poder criar o arquivo. 
+Aparece arquivo aberto na tela do usuário (arquivo deve ser .md e ter comentários dizendo o que escrever seguindo um passo
+a passo para escrever o melhor tipo de spec). Usuário escreve spec. Usuário clica no botão no canto direito inferior escrito "run on". Aparece uma lista em cima do botão mesmo
+de modelos de acordo com a api selecionada nas configurações e se não tiver aparece que é preciso configurar. aí selecionamos o modelo, aí na lista se torna um pequeno
+modal no mesmo tamanho ainda, com os detalhes do modelo e um botão de run. depois de rodar sai uma notificação de que um modelo está rodando, e ele entra numa lista de
+modelos rodando, ou que terminaram que ficam do lado do editor de código com um pequeno espaço, tipo uma lista que tem modelo tal (running) modelo tal (finish), e se eu
+clicar no botão de open deles vai aparecer um modal de chat do modelo, podendo assim eu conversar com ele e ver o que ele fez.
+
+Features:
+
+   Uma topbar com botões para poder criar arquivo md, configurar api, arquivos criados, arquivos deletados. modelos trabalhando. modelos que terminaram. 
+
+   Uma div na main do site igual um editor de código, só que nessa versão, muito minimalista, simples e produtivo, com outros arquivos como aba que ficam abertos
+   os arquivos e com dois botões de renomear, duplicar e deletar 
+
+   Uma div na main ao lado do editor de código, ela é uma lista de modelos que estam trabalhando ou já terminaram. ela fica com o editor de código desse jeito:
+
+   [30%] [ 70% ]
+
+Reutilize components como de notificação para poder notificar algumas ações importantes que aconteceram principalmente dos modelos.
