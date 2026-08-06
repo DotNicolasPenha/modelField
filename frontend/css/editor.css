@@ -106,7 +106,7 @@
   font-family: var(--font-ui);
   font-size: 13px;
   font-weight: 400;
-  color: var(--muted);
+  color: var(--secondary);
   background: transparent;
   user-select: none;
   overflow: hidden;
@@ -146,9 +146,9 @@
   justify-content: space-between;
   height: 32px;
   padding: 0 var(--space-4);
-  background: color-mix(in srgb, var(--surface) 85%, var(--foreground) 10%);
+  background: transparent;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--secondary);
   flex-shrink: 0;
   border-radius: var(--radius-md);
   margin-top: var(--space-1);

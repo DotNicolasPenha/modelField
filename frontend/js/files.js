@@ -28,7 +28,7 @@ const Files = {
     const templateSelect = document.getElementById('select-template');
 
     let name = nameInput?.value.trim() || 'untitled';
-    const template = templateSelect?.value || 'blank';
+    const template = CustomSelect.getValue(templateSelect) || 'blank';
 
     name = name.replace(/\.md$/, '');
     name = name.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-').toLowerCase();
@@ -53,7 +53,9 @@ const Files = {
     App.saveState();
 
     nameInput.value = '';
-    templateSelect.value = 'blank';
+    // Reset custom select to first option (Blank)
+    const firstOption = templateSelect?.querySelector('.custom-select-option');
+    if (firstOption) CustomSelect.select(templateSelect, firstOption);
     Modals.close('modal-new-file');
 
     this.openFile(file.id);

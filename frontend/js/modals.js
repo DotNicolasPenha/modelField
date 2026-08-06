@@ -1,3 +1,101 @@
+const CustomSelect = {
+  init(el) {
+    if (!el) return;
+
+    const trigger = el.querySelector('.custom-select-trigger');
+    const dropdown = el.querySelector('.custom-select-dropdown');
+    const options = el.querySelectorAll('.custom-select-option');
+
+    // Move dropdown to body so it escapes modal overflow
+    document.body.appendChild(dropdown);
+
+    // Store reference on the element
+    el._dropdown = dropdown;
+    el._trigger = trigger;
+
+    // Set default selection
+    const firstOption = options[0];
+    if (firstOption) {
+      firstOption.classList.add('selected');
+    }
+
+    // Toggle dropdown on trigger click
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.closeAll(el);
+      if (el.classList.contains('open')) {
+        this.close(el);
+      } else {
+        this.open(el);
+      }
+    });
+
+    // Select option on click
+    options.forEach(option => {
+      option.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.select(el, option);
+      });
+    });
+
+    // Close on outside click
+    document.addEventListener('click', () => {
+      this.closeAll();
+    });
+
+    // Prevent dropdown clicks from closing
+    dropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  },
+
+  open(el) {
+    const dropdown = el._dropdown;
+    const trigger = el._trigger;
+    if (!dropdown || !trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+
+    dropdown.style.top = (rect.bottom + 4) + 'px';
+    dropdown.style.left = rect.left + 'px';
+    dropdown.style.width = rect.width + 'px';
+
+    el.classList.add('open');
+    dropdown.style.display = 'flex';
+  },
+
+  close(el) {
+    const dropdown = el._dropdown;
+    el.classList.remove('open');
+    if (dropdown) dropdown.style.display = 'none';
+  },
+
+  select(el, option) {
+    const trigger = el._trigger?.querySelector('span');
+    const options = el.querySelectorAll('.custom-select-option');
+
+    options.forEach(o => o.classList.remove('selected'));
+    option.classList.add('selected');
+
+    if (trigger) {
+      trigger.textContent = option.textContent;
+    }
+
+    this.close(el);
+  },
+
+  getValue(el) {
+    const selected = el?.querySelector('.custom-select-option.selected');
+    return selected ? selected.dataset.value : 'blank';
+  },
+
+  closeAll(except) {
+    document.querySelectorAll('.custom-select.open').forEach(el => {
+      if (el !== except) this.close(el);
+    });
+  }
+};
+
 const Modals = {
   init() {
     document.querySelectorAll('.modal-close').forEach(btn => {
@@ -21,6 +119,7 @@ const Modals = {
           this.close(modal.id);
         });
         Files.hideDropdowns();
+        CustomSelect.closeAll();
       }
     });
 
@@ -39,6 +138,12 @@ const Modals = {
     document.getElementById('chat-input')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') this.sendChatMessage();
     });
+
+    // Initialize custom select
+    const templateSelect = document.getElementById('select-template');
+    if (templateSelect) {
+      CustomSelect.init(templateSelect);
+    }
   },
 
   open(modalId) {

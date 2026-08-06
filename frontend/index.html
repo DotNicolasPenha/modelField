@@ -83,12 +83,42 @@
         </div>
         <div class="form-group">
           <label class="form-label">Template</label>
-          <select class="input" id="select-template">
-            <option value="blank">Blank</option>
-            <option value="api">API Specification</option>
-            <option value="feature">Feature Specification</option>
-            <option value="component">Component Specification</option>
-          </select>
+          <div class="custom-select" id="select-template">
+            <div class="custom-select-trigger">
+              <span>Blank</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="custom-select-dropdown">
+              <div class="custom-select-group">
+                <div class="custom-select-group-label">Product</div>
+                <div class="custom-select-option" data-value="feature">Feature Specification</div>
+                <div class="custom-select-option" data-value="bug-fix">Bug Fix Specification</div>
+                <div class="custom-select-option" data-value="technical-refactor">Technical Refactor Specification</div>
+              </div>
+              <div class="custom-select-group">
+                <div class="custom-select-group-label">Engineering</div>
+                <div class="custom-select-option" data-value="architecture">Architecture Specification</div>
+                <div class="custom-select-option" data-value="adr">Architecture Decision Record</div>
+                <div class="custom-select-option" data-value="rfc">Request For Comments</div>
+              </div>
+              <div class="custom-select-group">
+                <div class="custom-select-group-label">Backend</div>
+                <div class="custom-select-option" data-value="api">API Specification</div>
+                <div class="custom-select-option" data-value="database">Database Specification</div>
+                <div class="custom-select-option" data-value="domain-model">Domain Model Specification</div>
+              </div>
+              <div class="custom-select-group">
+                <div class="custom-select-group-label">Frontend</div>
+                <div class="custom-select-option" data-value="component">UI Component Specification</div>
+                <div class="custom-select-option" data-value="design-system">Design System Specification</div>
+              </div>
+              <div class="custom-select-group">
+                <div class="custom-select-group-label">Operations</div>
+                <div class="custom-select-option" data-value="runbook">Operational Runbook</div>
+                <div class="custom-select-option" data-value="postmortem">Incident Postmortem</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-footer">

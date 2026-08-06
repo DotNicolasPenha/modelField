@@ -6,3 +6,4 @@ build/darwin/
 *.dll
 *.so
 *.dylib
+frontend/wailsjs/
