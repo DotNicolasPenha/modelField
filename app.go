@@ -40,7 +40,7 @@ func (a *App) startup(ctx context.Context) {
 		home = "."
 	}
 
-	a.dataDir = filepath.Join(home, "Documents", "ModelField")
+	a.dataDir = filepath.Join(home, ".modelfield")
 	os.MkdirAll(a.dataDir, 0755)
 }
 

@@ -31,7 +31,7 @@ functional in earlier versions and will be reconnected to live APIs.
 - **Backend:** Go 1.25, Wails v2
 - **Frontend:** Vanilla HTML, CSS, JavaScript (no framework)
 - **Build:** Makefile, Docker, GitHub Actions CI/CD
-- **Data:** JSON files stored in ~/Documents/ModelField/
+- **Data:** JSON files stored in ~/.modelfield/
 
 ## Architecture
 
@@ -39,7 +39,7 @@ functional in earlier versions and will be reconnected to live APIs.
 
 - `main.go` -- Application entry point, Wails configuration
 - `app.go` -- Core logic: API key management, file persistence, data layer
-- Data stored as JSON in the user's Documents folder
+- Data stored as JSON in the user's ~/.modelfield/ folder
 
 ### Frontend (Vanilla JS)
 
