@@ -246,6 +246,50 @@
   color: var(--foreground);
 }
 
+.model-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.1s var(--ease);
+  flex-shrink: 0;
+  margin-left: var(--space-1);
+  color: var(--muted);
+}
+
+.model-item:hover .model-close {
+  opacity: 0.5;
+}
+
+.model-close:hover {
+  opacity: 1 !important;
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.model-time {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-left: var(--space-3);
+  min-width: 60px;
+  text-align: right;
+}
+
+.run-search {
+  margin-bottom: var(--space-3);
+}
+
+.run-models-list {
+  max-height: 360px;
+  overflow-y: auto;
+  margin: 0 calc(var(--space-5) * -1);
+  padding: 0 var(--space-5);
+}
+
 .chat-messages {
   display: flex;
   flex-direction: column;
