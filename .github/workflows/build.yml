@@ -54,16 +54,19 @@ jobs:
         run: choco install mingw -y
 
       - name: Build
-        run: wails build
-
-      - name: Rename binary
-        shell: bash
         run: |
-          if [ "${{ matrix.platform }}" == "windows" ]; then
-            mv build/bin/ModelField.exe build/bin/ModelField-${{ matrix.platform }}-${{ matrix.goarch }}.exe
+          if [ "${{ matrix.platform }}" == "darwin" ]; then
+            wails build -platform darwin/universal -o ModelField-${{ matrix.platform }}-${{ matrix.goarch }}
           else
-            mv build/bin/ModelField build/bin/ModelField-${{ matrix.platform }}-${{ matrix.goarch }}
+            wails build -o ModelField-${{ matrix.platform }}-${{ matrix.goarch }}
           fi
+
+      - name: Package macOS
+        if: matrix.platform == 'darwin'
+        run: |
+          cd build/bin
+          zip -r ModelField-darwin-arm64.zip ModelField-darwin-arm64.app
+          rm -rf ModelField-darwin-arm64.app
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
