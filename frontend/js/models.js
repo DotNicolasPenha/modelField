@@ -1,22 +1,22 @@
 const Models = {
   data: {
     openai: [
-      { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Most capable model, multimodal' },
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Fast and affordable' },
-      { id: 'o1-preview', name: 'o1-preview', provider: 'OpenAI', description: 'Advanced reasoning' }
+      { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Most capable model, multimodal', costPerInputToken: 0.000005, costPerOutputToken: 0.000015 },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Fast and affordable', costPerInputToken: 0.00000015, costPerOutputToken: 0.0000006 },
+      { id: 'o1-preview', name: 'o1-preview', provider: 'OpenAI', description: 'Advanced reasoning', costPerInputToken: 0.000015, costPerOutputToken: 0.00006 }
     ],
     claude: [
-      { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: 'Anthropic', description: 'Balanced speed and quality' },
-      { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', provider: 'Anthropic', description: 'Most capable model' },
-      { id: 'claude-haiku-3-5', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Ultra fast' }
+      { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: 'Anthropic', description: 'Balanced speed and quality', costPerInputToken: 0.000003, costPerOutputToken: 0.000015 },
+      { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', provider: 'Anthropic', description: 'Most capable model', costPerInputToken: 0.000015, costPerOutputToken: 0.000075 },
+      { id: 'claude-haiku-3-5', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Ultra fast', costPerInputToken: 0.0000008, costPerOutputToken: 0.000004 }
     ],
     gemini: [
-      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', description: 'Premium model' },
-      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Fast and efficient' }
+      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', description: 'Premium model', costPerInputToken: 0.00000125, costPerOutputToken: 0.00001 },
+      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Fast and efficient', costPerInputToken: 0.000000075, costPerOutputToken: 0.0000003 }
     ],
     openrouter: [
-      { id: 'meta-llama/llama-4-maverick', name: 'Llama 4 Maverick', provider: 'Meta via OpenRouter', description: 'Open source model' },
-      { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek via OpenRouter', description: 'Advanced reasoning' }
+      { id: 'meta-llama/llama-4-maverick', name: 'Llama 4 Maverick', provider: 'Meta via OpenRouter', description: 'Open source model', costPerInputToken: 0.0000002, costPerOutputToken: 0.0000002 },
+      { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek via OpenRouter', description: 'Advanced reasoning', costPerInputToken: 0.00000055, costPerOutputToken: 0.0000022 }
     ]
   },
 
@@ -70,6 +70,53 @@ const Models = {
     if (minutes >= 60) return `${hours}h ago`;
     if (seconds >= 60) return `${minutes}m ago`;
     return 'just now';
+  },
+
+  formatTokens(tokens) {
+    if (tokens >= 1000) {
+      return (tokens / 1000).toFixed(1) + 'k';
+    }
+    return tokens.toString();
+  },
+
+  formatCost(cost) {
+    if (cost >= 0.01) {
+      return '$' + cost.toFixed(3);
+    }
+    if (cost >= 0.001) {
+      return '$' + cost.toFixed(4);
+    }
+    return '$' + cost.toFixed(5);
+  },
+
+  formatDuration(seconds) {
+    if (seconds < 1) {
+      return Math.round(seconds * 1000) + 'ms';
+    }
+    return seconds.toFixed(1) + 's';
+  },
+
+  formatSize(bytes) {
+    if (bytes >= 1024) {
+      return (bytes / 1024).toFixed(1) + ' KB';
+    }
+    return bytes + ' B';
+  },
+
+  generateMetrics(model) {
+    const inputTokens = 800 + Math.floor(Math.random() * 1200);
+    const outputTokens = 500 + Math.floor(Math.random() * 1000);
+    const duration = 1 + Math.random() * 5;
+    const cost = (inputTokens * model.costPerInputToken) + (outputTokens * model.costPerOutputToken);
+    const resultSize = 1500 + Math.floor(Math.random() * 2000);
+
+    return {
+      inputTokens,
+      outputTokens,
+      duration,
+      cost,
+      resultSize
+    };
   },
 
   updateTimes() {
@@ -143,7 +190,8 @@ const Models = {
       started: new Date().toISOString(),
       finished: null,
       lastAccessed: null,
-      result: null
+      result: null,
+      metrics: null
     };
 
     this.running.push(run);
@@ -162,6 +210,7 @@ const Models = {
     run.status = 'finished';
     run.finished = new Date().toISOString();
     run.result = this.generateMockResult(run);
+    run.metrics = this.generateMetrics(run.model);
 
     this.render();
     App.updateCounts();
@@ -198,6 +247,26 @@ The specification has been analyzed by ${run.model.name}.
 The specification is clear and well-organized. Minor improvements suggested for completeness.`;
   },
 
+  renderMetrics(metrics) {
+    if (!metrics) return '';
+
+    return `
+      <div class="model-metrics">
+        <span class="model-metric">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          ${this.formatTokens(metrics.inputTokens + metrics.outputTokens)}
+        </span>
+        <span class="model-metric">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          ${this.formatDuration(metrics.duration)}
+        </span>
+        <span class="model-metric">
+          ${this.formatCost(metrics.cost)}
+        </span>
+      </div>
+    `;
+  },
+
   render() {
     const list = document.getElementById('models-list');
     if (!list) return;
@@ -219,12 +288,14 @@ The specification is clear and well-organized. Minor improvements suggested for 
           </div>
           <span class="model-time" data-time="${timeSource}">${timeText}</span>
           <span class="model-status ${run.status}">${run.status}</span>
-          ${run.status === 'finished' ? `
-            <button class="model-open">Open</button>
-            <button class="model-close" title="Remove">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          ` : ''}
+          <div class="model-actions">
+            ${run.status === 'finished' ? `
+              <button class="model-open">Open</button>
+              <button class="model-close" title="Remove">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            ` : ''}
+          </div>
         </div>
       `;
     }).join('');
@@ -271,10 +342,13 @@ The specification is clear and well-organized. Minor improvements suggested for 
       list.innerHTML = filtered.map(run => {
         const timeSource = run.status === 'finished' ? (run.finished || run.started) : run.started;
         const timeText = this.timeAgo(timeSource);
+        const metricsText = run.metrics
+          ? `${this.formatTokens(run.metrics.inputTokens + run.metrics.outputTokens)} tokens · ${this.formatDuration(run.metrics.duration)}`
+          : '';
         return `
           <div class="dropdown-item" data-run-id="${run.id}">
             <span class="dropdown-item-name">${run.model.name}</span>
-            <span class="dropdown-item-status">${timeText}</span>
+            <span class="dropdown-item-status">${metricsText || timeText}</span>
           </div>
         `;
       }).join('');
@@ -304,10 +378,35 @@ The specification is clear and well-organized. Minor improvements suggested for 
     run.lastAccessed = new Date().toISOString();
 
     const title = document.getElementById('chat-title');
+    const metricsInline = document.getElementById('chat-metrics-inline');
     const messages = document.getElementById('chat-messages');
     const input = document.getElementById('chat-input');
 
-    if (title) title.textContent = `${run.model.name} - ${run.spec}.md`;
+    if (title) title.textContent = run.model.name;
+
+    if (metricsInline) {
+      if (run.metrics) {
+        metricsInline.innerHTML = `
+          <span class="chat-metric-item">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+            ${this.formatTokens(run.metrics.inputTokens)} in · ${this.formatTokens(run.metrics.outputTokens)} out
+          </span>
+          <span class="chat-metric-item">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${this.formatDuration(run.metrics.duration)}
+          </span>
+          <span class="chat-metric-item">
+            ${this.formatCost(run.metrics.cost)}
+          </span>
+          <span class="chat-metric-item">
+            ${this.formatSize(run.metrics.resultSize)}
+          </span>
+        `;
+      } else {
+        metricsInline.innerHTML = '';
+      }
+    }
+
     if (messages) {
       messages.innerHTML = `
         <div class="chat-msg">
