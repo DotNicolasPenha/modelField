@@ -147,7 +147,6 @@ const Projects = {
     this.updateDisplay();
     Files.renderTabs();
     Editor.render();
-    Tasks.render();
     App.updateCounts();
   },
 
@@ -157,7 +156,6 @@ const Projects = {
 
     App.state.projects = App.state.projects.filter(p => p.id !== projectId);
     App.state.files = App.state.files.filter(f => f.projectId !== projectId);
-    App.state.tasks = App.state.tasks.filter(t => t.projectId !== projectId);
 
     if (App.state.currentProject === projectId) {
       App.state.currentProject = App.state.projects[0]?.id || null;
@@ -168,12 +166,10 @@ const Projects = {
 
     await App.saveProjects();
     await App.saveState();
-    await App.saveTasks();
 
     this.updateDisplay();
     Files.renderTabs();
     Editor.render();
-    Tasks.render();
     App.updateCounts();
     Notifications.show(`Project "${project.name}" deleted`);
   },

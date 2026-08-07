@@ -55,25 +55,6 @@ type Project struct {
 	Created string `json:"created"`
 }
 
-type CheckItem struct {
-	ID      string `json:"id"`
-	Text    string `json:"text"`
-	Checked bool   `json:"checked"`
-}
-
-type Task struct {
-	ID          string      `json:"id"`
-	ProjectID   string      `json:"projectId"`
-	Title       string      `json:"title"`
-	Description string      `json:"description"`
-	Phase       string      `json:"phase"`
-	Priority    string      `json:"priority"`
-	LinkedSpec  string      `json:"linkedSpec"`
-	Checklist   []CheckItem `json:"checklist"`
-	Created     string      `json:"created"`
-	Modified    string      `json:"modified"`
-}
-
 type App struct {
 	ctx      context.Context
 	dataDir  string
@@ -217,37 +198,6 @@ func (a *App) SelectDirectory() string {
 		return ""
 	}
 	return result
-}
-
-func (a *App) GetTasks() []Task {
-	var tasks []Task
-	a.readJSON("tasks.json", &tasks)
-	return tasks
-}
-
-func (a *App) SaveTask(task Task) error {
-	var tasks []Task
-	a.readJSON("tasks.json", &tasks)
-	for i, t := range tasks {
-		if t.ID == task.ID {
-			tasks[i] = task
-			return a.writeJSON("tasks.json", tasks)
-		}
-	}
-	tasks = append(tasks, task)
-	return a.writeJSON("tasks.json", tasks)
-}
-
-func (a *App) DeleteTask(id string) error {
-	var tasks []Task
-	a.readJSON("tasks.json", &tasks)
-	filtered := make([]Task, 0, len(tasks))
-	for _, t := range tasks {
-		if t.ID != id {
-			filtered = append(filtered, t)
-		}
-	}
-	return a.writeJSON("tasks.json", filtered)
 }
 
 func (a *App) ShowNotification(title string, message string) {

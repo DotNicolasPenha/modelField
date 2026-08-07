@@ -7,8 +7,7 @@ const App = {
     activeFile: null,
     apiKeys: {},
     modelAliases: [],
-    runHistory: [],
-    tasks: []
+    runHistory: []
   },
 
   isWails: typeof window.go !== 'undefined',
@@ -20,7 +19,6 @@ const App = {
     Files.init();
     Editor.init();
     Models.init();
-    Tasks.init();
     Modals.init();
     this.updateCounts();
   },
@@ -33,8 +31,7 @@ const App = {
         files: this.state.files,
         apiKeys: this.state.apiKeys,
         modelAliases: this.state.modelAliases,
-        runHistory: this.state.runHistory,
-        tasks: this.state.tasks
+        runHistory: this.state.runHistory
       }));
     } catch (e) {
       console.warn('Failed to save state:', e);
@@ -49,7 +46,6 @@ const App = {
         this.state.files = await window.go.main.App.GetFiles() || [];
         this.state.modelAliases = await window.go.main.App.GetModelAliases() || [];
         this.state.runHistory = await window.go.main.App.GetRunHistory() || [];
-        this.state.tasks = await window.go.main.App.GetTasks() || [];
         const saved = localStorage.getItem('modelfield-currentProject');
         if (saved) this.state.currentProject = saved;
       } catch (e) {
@@ -66,7 +62,6 @@ const App = {
           this.state.apiKeys = parsed.apiKeys || {};
           this.state.modelAliases = parsed.modelAliases || [];
           this.state.runHistory = parsed.runHistory || [];
-          this.state.tasks = parsed.tasks || [];
         }
       } catch (e) {
         console.warn('Failed to load state:', e);
@@ -144,20 +139,6 @@ const App = {
     }
   },
 
-  async saveTasks() {
-    if (this.isWails) {
-      try {
-        for (const t of this.state.tasks) {
-          await window.go.main.App.SaveTask(t);
-        }
-      } catch (e) {
-        console.warn('Failed to save tasks to Go:', e);
-      }
-    } else {
-      this._saveLocal();
-    }
-  },
-
   initDarkMode() {
     const saved = localStorage.getItem('modelfield-theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -189,26 +170,16 @@ const App = {
     const filesCount = document.getElementById('files-count');
     const runningCount = document.getElementById('running-count');
     const finishedCount = document.getElementById('finished-count');
-    const tasksCount = document.getElementById('tasks-count');
 
     const projectFiles = this.getProjectFiles();
     if (filesCount) filesCount.textContent = projectFiles.length;
     if (runningCount) runningCount.textContent = Models.running.filter(r => r.status === 'running').length;
     if (finishedCount) finishedCount.textContent = Models.running.filter(r => r.status === 'finished').length;
-    if (tasksCount) {
-      const projectTasks = this.getProjectTasks();
-      tasksCount.textContent = projectTasks.filter(t => t.status === 'pending').length;
-    }
   },
 
   getProjectFiles() {
     if (!this.state.currentProject) return [];
     return this.state.files.filter(f => f.projectId === this.state.currentProject);
-  },
-
-  getProjectTasks() {
-    if (!this.state.currentProject) return [];
-    return this.state.tasks.filter(t => t.projectId === this.state.currentProject);
   },
 
   getCurrentProject() {
