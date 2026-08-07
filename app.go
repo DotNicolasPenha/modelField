@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type APIKeys struct {
@@ -16,11 +18,60 @@ type APIKeys struct {
 }
 
 type File struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Content  string `json:"content"`
-	Created  string `json:"created"`
-	Modified string `json:"modified"`
+	ID        string `json:"id"`
+	ProjectID string `json:"projectId"`
+	Name      string `json:"name"`
+	Content   string `json:"content"`
+	Created   string `json:"created"`
+	Modified  string `json:"modified"`
+}
+
+type ModelAlias struct {
+	ModelID    string `json:"modelId"`
+	CustomName string `json:"customName"`
+}
+
+type RunRecord struct {
+	ID           string  `json:"id"`
+	ModelID      string  `json:"modelId"`
+	ModelName    string  `json:"modelName"`
+	Alias        string  `json:"alias"`
+	SpecName     string  `json:"specName"`
+	Status       string  `json:"status"`
+	Started      string  `json:"started"`
+	Finished     string  `json:"finished"`
+	Result       string  `json:"result"`
+	InputTokens  int     `json:"inputTokens"`
+	OutputTokens int     `json:"outputTokens"`
+	Duration     float64 `json:"duration"`
+	Cost         float64 `json:"cost"`
+	ResultSize   int     `json:"resultSize"`
+}
+
+type Project struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Created string `json:"created"`
+}
+
+type CheckItem struct {
+	ID      string `json:"id"`
+	Text    string `json:"text"`
+	Checked bool   `json:"checked"`
+}
+
+type Task struct {
+	ID          string      `json:"id"`
+	ProjectID   string      `json:"projectId"`
+	Title       string      `json:"title"`
+	Description string      `json:"description"`
+	Phase       string      `json:"phase"`
+	Priority    string      `json:"priority"`
+	LinkedSpec  string      `json:"linkedSpec"`
+	Checklist   []CheckItem `json:"checklist"`
+	Created     string      `json:"created"`
+	Modified    string      `json:"modified"`
 }
 
 type App struct {
@@ -93,6 +144,110 @@ func (a *App) SaveFiles(files []File) error {
 
 func (a *App) GetDataDir() string {
 	return a.dataDir
+}
+
+func (a *App) GetModelAliases() []ModelAlias {
+	var aliases []ModelAlias
+	a.readJSON("model_aliases.json", &aliases)
+	return aliases
+}
+
+func (a *App) SaveModelAliases(aliases []ModelAlias) error {
+	return a.writeJSON("model_aliases.json", aliases)
+}
+
+func (a *App) GetRunHistory() []RunRecord {
+	var records []RunRecord
+	a.readJSON("run_history.json", &records)
+	return records
+}
+
+func (a *App) SaveRunHistory(records []RunRecord) error {
+	return a.writeJSON("run_history.json", records)
+}
+
+func (a *App) DeleteRunRecord(id string) error {
+	var records []RunRecord
+	a.readJSON("run_history.json", &records)
+	filtered := make([]RunRecord, 0, len(records))
+	for _, r := range records {
+		if r.ID != id {
+			filtered = append(filtered, r)
+		}
+	}
+	return a.writeJSON("run_history.json", filtered)
+}
+
+func (a *App) GetProjects() []Project {
+	var projects []Project
+	a.readJSON("projects.json", &projects)
+	return projects
+}
+
+func (a *App) SaveProject(project Project) error {
+	var projects []Project
+	a.readJSON("projects.json", &projects)
+	for i, p := range projects {
+		if p.ID == project.ID {
+			projects[i] = project
+			return a.writeJSON("projects.json", projects)
+		}
+	}
+	projects = append(projects, project)
+	return a.writeJSON("projects.json", projects)
+}
+
+func (a *App) DeleteProject(id string) error {
+	var projects []Project
+	a.readJSON("projects.json", &projects)
+	filtered := make([]Project, 0, len(projects))
+	for _, p := range projects {
+		if p.ID != id {
+			filtered = append(filtered, p)
+		}
+	}
+	return a.writeJSON("projects.json", filtered)
+}
+
+func (a *App) SelectDirectory() string {
+	result, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select Project Directory",
+	})
+	if err != nil || result == "" {
+		return ""
+	}
+	return result
+}
+
+func (a *App) GetTasks() []Task {
+	var tasks []Task
+	a.readJSON("tasks.json", &tasks)
+	return tasks
+}
+
+func (a *App) SaveTask(task Task) error {
+	var tasks []Task
+	a.readJSON("tasks.json", &tasks)
+	for i, t := range tasks {
+		if t.ID == task.ID {
+			tasks[i] = task
+			return a.writeJSON("tasks.json", tasks)
+		}
+	}
+	tasks = append(tasks, task)
+	return a.writeJSON("tasks.json", tasks)
+}
+
+func (a *App) DeleteTask(id string) error {
+	var tasks []Task
+	a.readJSON("tasks.json", &tasks)
+	filtered := make([]Task, 0, len(tasks))
+	for _, t := range tasks {
+		if t.ID != id {
+			filtered = append(filtered, t)
+		}
+	}
+	return a.writeJSON("tasks.json", filtered)
 }
 
 func (a *App) ShowNotification(title string, message string) {
