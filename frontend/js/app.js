@@ -1,9 +1,14 @@
 const App = {
   state: {
+    projects: [],
+    currentProject: null,
     files: [],
     openFiles: [],
     activeFile: null,
-    apiKeys: {}
+    apiKeys: {},
+    modelAliases: [],
+    runHistory: [],
+    tasks: []
   },
 
   isWails: typeof window.go !== 'undefined',
@@ -11,18 +16,42 @@ const App = {
   async init() {
     await this.loadState();
     this.initDarkMode();
+    Projects.init();
     Files.init();
     Editor.init();
     Models.init();
+    Tasks.init();
     Modals.init();
     this.updateCounts();
+  },
+
+  _saveLocal() {
+    try {
+      localStorage.setItem('modelfield-state', JSON.stringify({
+        projects: this.state.projects,
+        currentProject: this.state.currentProject,
+        files: this.state.files,
+        apiKeys: this.state.apiKeys,
+        modelAliases: this.state.modelAliases,
+        runHistory: this.state.runHistory,
+        tasks: this.state.tasks
+      }));
+    } catch (e) {
+      console.warn('Failed to save state:', e);
+    }
   },
 
   async loadState() {
     if (this.isWails) {
       try {
+        this.state.projects = await window.go.main.App.GetProjects() || [];
         this.state.apiKeys = await window.go.main.App.GetAPIKeys() || {};
         this.state.files = await window.go.main.App.GetFiles() || [];
+        this.state.modelAliases = await window.go.main.App.GetModelAliases() || [];
+        this.state.runHistory = await window.go.main.App.GetRunHistory() || [];
+        this.state.tasks = await window.go.main.App.GetTasks() || [];
+        const saved = localStorage.getItem('modelfield-currentProject');
+        if (saved) this.state.currentProject = saved;
       } catch (e) {
         console.warn('Failed to load state from Go:', e);
       }
@@ -31,8 +60,13 @@ const App = {
         const saved = localStorage.getItem('modelfield-state');
         if (saved) {
           const parsed = JSON.parse(saved);
+          this.state.projects = parsed.projects || [];
+          this.state.currentProject = parsed.currentProject || null;
           this.state.files = parsed.files || [];
           this.state.apiKeys = parsed.apiKeys || {};
+          this.state.modelAliases = parsed.modelAliases || [];
+          this.state.runHistory = parsed.runHistory || [];
+          this.state.tasks = parsed.tasks || [];
         }
       } catch (e) {
         console.warn('Failed to load state:', e);
@@ -48,14 +82,29 @@ const App = {
         console.warn('Failed to save files to Go:', e);
       }
     } else {
+      this._saveLocal();
+    }
+  },
+
+  async saveProjects() {
+    if (this.isWails) {
       try {
-        localStorage.setItem('modelfield-state', JSON.stringify({
-          files: this.state.files,
-          apiKeys: this.state.apiKeys
-        }));
+        for (const p of this.state.projects) {
+          await window.go.main.App.SaveProject(p);
+        }
       } catch (e) {
-        console.warn('Failed to save state:', e);
+        console.warn('Failed to save projects to Go:', e);
       }
+    } else {
+      this._saveLocal();
+    }
+  },
+
+  async saveCurrentProject() {
+    if (this.isWails) {
+      localStorage.setItem('modelfield-currentProject', this.state.currentProject || '');
+    } else {
+      this._saveLocal();
     }
   },
 
@@ -67,14 +116,45 @@ const App = {
         console.warn('Failed to save API keys to Go:', e);
       }
     } else {
+      this._saveLocal();
+    }
+  },
+
+  async saveModelAliases() {
+    if (this.isWails) {
       try {
-        localStorage.setItem('modelfield-state', JSON.stringify({
-          files: this.state.files,
-          apiKeys: this.state.apiKeys
-        }));
+        await window.go.main.App.SaveModelAliases(this.state.modelAliases);
       } catch (e) {
-        console.warn('Failed to save API keys:', e);
+        console.warn('Failed to save model aliases to Go:', e);
       }
+    } else {
+      this._saveLocal();
+    }
+  },
+
+  async saveRunHistory() {
+    if (this.isWails) {
+      try {
+        await window.go.main.App.SaveRunHistory(this.state.runHistory);
+      } catch (e) {
+        console.warn('Failed to save run history to Go:', e);
+      }
+    } else {
+      this._saveLocal();
+    }
+  },
+
+  async saveTasks() {
+    if (this.isWails) {
+      try {
+        for (const t of this.state.tasks) {
+          await window.go.main.App.SaveTask(t);
+        }
+      } catch (e) {
+        console.warn('Failed to save tasks to Go:', e);
+      }
+    } else {
+      this._saveLocal();
     }
   },
 
@@ -109,10 +189,30 @@ const App = {
     const filesCount = document.getElementById('files-count');
     const runningCount = document.getElementById('running-count');
     const finishedCount = document.getElementById('finished-count');
+    const tasksCount = document.getElementById('tasks-count');
 
-    if (filesCount) filesCount.textContent = this.state.files.length;
+    const projectFiles = this.getProjectFiles();
+    if (filesCount) filesCount.textContent = projectFiles.length;
     if (runningCount) runningCount.textContent = Models.running.filter(r => r.status === 'running').length;
     if (finishedCount) finishedCount.textContent = Models.running.filter(r => r.status === 'finished').length;
+    if (tasksCount) {
+      const projectTasks = this.getProjectTasks();
+      tasksCount.textContent = projectTasks.filter(t => t.status === 'pending').length;
+    }
+  },
+
+  getProjectFiles() {
+    if (!this.state.currentProject) return [];
+    return this.state.files.filter(f => f.projectId === this.state.currentProject);
+  },
+
+  getProjectTasks() {
+    if (!this.state.currentProject) return [];
+    return this.state.tasks.filter(t => t.projectId === this.state.currentProject);
+  },
+
+  getCurrentProject() {
+    return this.state.projects.find(p => p.id === this.state.currentProject) || null;
   }
 };
 
