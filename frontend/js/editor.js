@@ -7,7 +7,22 @@ const Editor = {
     const area = document.getElementById('editor-area');
     if (!area) return;
 
+    if (!App.state.currentProject) {
+      area.innerHTML = `
+        <div class="empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <p>No project open</p>
+          <button class="btn btn-primary" id="btn-new-project-empty">Create new project</button>
+        </div>
+      `;
+      document.getElementById('btn-new-project-empty')?.addEventListener('click', () => {
+        Modals.open('modal-new-project');
+      });
+      return;
+    }
+
     if (!App.state.activeFile) {
+      const project = App.getCurrentProject();
       area.innerHTML = `
         <div class="empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -24,12 +39,15 @@ const Editor = {
     const file = App.state.files.find(f => f.id === App.state.activeFile);
     if (!file) return;
 
+    const project = App.getCurrentProject();
     const lineCount = (file.content || '').split('\n').length;
     const lines = Array.from({ length: Math.max(lineCount, 20) }, (_, i) => i + 1);
 
     area.innerHTML = `
       <div class="editor-toolbar">
         <div class="editor-toolbar-left">
+          <span class="editor-toolbar-project">${project ? project.name : ''}</span>
+          <span class="editor-toolbar-separator">/</span>
           <span>${file.name}.md</span>
         </div>
         <div class="editor-toolbar-right">
