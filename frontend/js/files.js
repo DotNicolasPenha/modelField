@@ -86,7 +86,21 @@ const Files = {
     this.renderTabs();
   },
 
-  closeFile(fileId) {
+  closeFile(fileId, animate = false) {
+    if (animate) {
+      const tab = document.querySelector(`.tab[data-file-id="${fileId}"]`);
+      if (tab) {
+        tab.classList.add('closing');
+        tab.addEventListener('animationend', () => {
+          this._closeFileImmediate(fileId);
+        }, { once: true });
+        return;
+      }
+    }
+    this._closeFileImmediate(fileId);
+  },
+
+  _closeFileImmediate(fileId) {
     App.state.openFiles = App.state.openFiles.filter(id => id !== fileId);
 
     if (App.state.activeFile === fileId) {
@@ -135,7 +149,7 @@ const Files = {
     if (!file) return;
 
     App.state.files = App.state.files.filter(f => f.id !== fileId);
-    this.closeFile(fileId);
+    this.closeFile(fileId, true);
     App.saveState();
     App.updateCounts();
     Notifications.show(`File "${file.name}.md" deleted`);
@@ -153,6 +167,7 @@ const Files = {
 
       const tab = document.createElement('div');
       tab.className = `tab ${fileId === App.state.activeFile ? 'active' : ''}`;
+      tab.dataset.fileId = fileId;
       tab.innerHTML = `
         <span class="tab-name">${file.name}.md</span>
         <button class="tab-close">
@@ -168,7 +183,7 @@ const Files = {
 
       tab.querySelector('.tab-close')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.closeFile(fileId);
+        this.closeFile(fileId, true);
       });
 
       tab.addEventListener('contextmenu', (e) => {

@@ -112,14 +112,22 @@ const Checklist = {
     const project = App.getCurrentProject();
     if (!project) return;
     if (!project.checklist) project.checklist = [];
-    project.checklist.push({
+    const newItem = {
       id: Date.now().toString(),
       text,
       description: '',
       checked: false
-    });
+    };
+    project.checklist.push(newItem);
     App.saveProjects();
     this.render();
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-id="${newItem.id}"]`);
+      if (el) {
+        el.classList.add('entering');
+        el.addEventListener('animationend', () => el.classList.remove('entering'), { once: true });
+      }
+    });
   },
 
   toggleItem(id) {
@@ -136,9 +144,19 @@ const Checklist = {
   deleteItem(id) {
     const project = App.getCurrentProject();
     if (!project?.checklist) return;
-    project.checklist = project.checklist.filter(i => i.id !== id);
-    App.saveProjects();
-    this.render();
+    const el = document.querySelector(`[data-id="${id}"]`);
+    if (el) {
+      el.classList.add('exiting');
+      el.addEventListener('animationend', () => {
+        project.checklist = project.checklist.filter(i => i.id !== id);
+        App.saveProjects();
+        this.render();
+      }, { once: true });
+    } else {
+      project.checklist = project.checklist.filter(i => i.id !== id);
+      App.saveProjects();
+      this.render();
+    }
   },
 
   toggleExpand(id) {

@@ -259,6 +259,14 @@ const Models = {
     App.updateCounts();
     Notifications.show(`Running ${this.getDisplayName(model)} on ${specName}.md`);
 
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`.model-item[data-run-id="${run.id}"]`);
+      if (el) {
+        el.classList.add('entering');
+        el.addEventListener('animationend', () => el.classList.remove('entering'), { once: true });
+      }
+    });
+
     const delay = 2000 + Math.random() * 3000;
     setTimeout(() => this.finishRun(run.id), delay);
   },
@@ -295,16 +303,35 @@ const Models = {
     this.render();
     App.updateCounts();
     Notifications.show(`${this.getDisplayName(run.model)} finished processing ${run.spec}.md`);
+
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`.model-item[data-run-id="${run.id}"] .model-status`);
+      if (el) {
+        el.classList.add('status-changed');
+        el.addEventListener('animationend', () => el.classList.remove('status-changed'), { once: true });
+      }
+    });
   },
 
   removeRun(runId) {
     const run = this.running.find(r => r.id === runId);
     if (!run || run.status === 'running') return;
 
-    this.running = this.running.filter(r => r.id !== runId);
-    this.render();
-    App.updateCounts();
-    Notifications.show(`${this.getDisplayName(run.model)} removed from list`);
+    const el = document.querySelector(`.model-item[data-run-id="${runId}"]`);
+    if (el) {
+      el.classList.add('exiting');
+      el.addEventListener('animationend', () => {
+        this.running = this.running.filter(r => r.id !== runId);
+        this.render();
+        App.updateCounts();
+        Notifications.show(`${this.getDisplayName(run.model)} removed from list`);
+      }, { once: true });
+    } else {
+      this.running = this.running.filter(r => r.id !== runId);
+      this.render();
+      App.updateCounts();
+      Notifications.show(`${this.getDisplayName(run.model)} removed from list`);
+    }
   },
 
   generateMockResult(run) {

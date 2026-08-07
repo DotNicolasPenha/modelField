@@ -18,7 +18,7 @@
   border-bottom: 2px solid transparent;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.15s var(--ease);
+  transition: color var(--duration-normal) var(--ease), border-bottom-color var(--duration-normal) var(--ease);
 }
 
 .tab:hover {
@@ -28,6 +28,15 @@
 .tab.active {
   color: var(--foreground);
   border-bottom-color: var(--foreground);
+}
+
+.tab.closing {
+  animation: tabClose var(--duration-normal) var(--ease) forwards;
+}
+
+@keyframes tabClose {
+  from { opacity: 1; max-width: 200px; padding: 0 var(--space-3); }
+  to { opacity: 0; max-width: 0; padding: 0; overflow: hidden; }
 }
 
 .tab-name {
@@ -42,7 +51,7 @@
   height: 18px;
   border-radius: var(--radius-sm);
   opacity: 0;
-  transition: opacity 0.1s var(--ease);
+  transition: opacity var(--duration-fast) var(--ease);
   pointer-events: auto;
 }
 
@@ -92,7 +101,6 @@
 
 .editor-toolbar-separator {
   color: var(--muted);
-}
   font-size: 13px;
   color: var(--secondary);
 }
@@ -273,6 +281,35 @@
   padding: 3px var(--space-2);
   border-radius: var(--radius-sm);
   flex-shrink: 0;
+  transition: color var(--duration-normal) var(--ease);
+}
+
+.model-status.status-changed {
+  animation: statusChange var(--duration-normal) var(--ease);
+}
+
+@keyframes statusChange {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.model-item.entering {
+  animation: modelEnter var(--duration-normal) var(--ease-spring) forwards;
+}
+
+@keyframes modelEnter {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.model-item.exiting {
+  animation: modelExit var(--duration-fast) var(--ease) forwards;
+}
+
+@keyframes modelExit {
+  from { opacity: 1; transform: translateX(0); max-height: 60px; }
+  to { opacity: 0; transform: translateX(16px); max-height: 0; overflow: hidden; }
 }
 
 .model-status.running {
@@ -303,8 +340,8 @@
   color: var(--secondary);
   cursor: pointer;
   padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  transition: all 0.1s var(--ease);
+  border-radius: var(--radius-sm);;
+  transition: all var(--duration-fast) var(--ease);
 }
 
 .model-open:hover {
@@ -320,7 +357,7 @@
   height: 18px;
   border-radius: var(--radius-sm);
   opacity: 0;
-  transition: opacity 0.1s var(--ease);
+  transition: opacity var(--duration-fast) var(--ease);
   color: var(--muted);
 }
 
@@ -498,7 +535,7 @@
   background: var(--surface);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.15s var(--ease);
+  transition: background var(--duration-fast) var(--ease);
 }
 
 .history-item:hover {
@@ -550,7 +587,7 @@
   padding: 4px;
   cursor: pointer;
   color: var(--muted);
-  transition: color 0.15s var(--ease);
+  transition: color var(--duration-normal) var(--ease);
   flex-shrink: 0;
 }
 

@@ -78,7 +78,7 @@ const CustomSelect = {
     dropdown.style.width = rect.width + 'px';
 
     el.classList.add('open');
-    dropdown.style.display = 'flex';
+    dropdown.classList.add('active');
 
     const searchInput = dropdown.querySelector('.custom-select-search-input');
     if (searchInput) {
@@ -91,7 +91,7 @@ const CustomSelect = {
   close(el) {
     const dropdown = el._dropdown;
     el.classList.remove('open');
-    if (dropdown) dropdown.style.display = 'none';
+    if (dropdown) dropdown.classList.remove('active');
   },
 
   select(el, option) {
