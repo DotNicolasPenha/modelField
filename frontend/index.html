@@ -17,6 +17,12 @@
   <div id="app">
     <header class="topbar">
       <div class="topbar-left">
+        <button class="topbar-btn topbar-project" id="btn-project" title="Switch Project">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span id="project-name">No project</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="topbar-separator"></div>
         <button class="topbar-btn" id="btn-new-file" title="New File">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
@@ -29,6 +35,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           <span id="files-count">0</span>
         </button>
+        <button class="topbar-btn topbar-label" id="btn-tasks-count" title="Tasks">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span id="tasks-count">0</span>
+        </button>
         <button class="topbar-btn topbar-label" id="btn-running-count" title="Running">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span id="running-count">0</span>
@@ -39,6 +49,9 @@
         </button>
       </div>
       <div class="topbar-right">
+        <button class="topbar-btn" id="btn-history" title="Run History">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </button>
         <button class="topbar-btn" id="btn-theme" title="Toggle Theme">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
@@ -89,6 +102,9 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
             <div class="custom-select-dropdown">
+              <div class="custom-select-search">
+                <input type="text" placeholder="Search templates..." class="custom-select-search-input">
+              </div>
               <div class="custom-select-group">
                 <div class="custom-select-group-label">Product</div>
                 <div class="custom-select-option" data-value="feature">Feature Specification</div>
@@ -176,11 +192,41 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="modal-run-config">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3>Configure Run</h3>
+        <button class="topbar-btn modal-close" data-modal="modal-run-config">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="run-config-model">
+          <span class="run-config-model-name" id="config-model-name"></span>
+          <span class="run-config-model-provider" id="config-model-provider"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nickname (optional)</label>
+          <input type="text" class="input" id="input-run-alias" placeholder="e.g. My GPT">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Spec</label>
+          <span class="run-config-spec" id="config-spec-name"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close" data-modal="modal-run-config">Cancel</button>
+        <button class="btn btn-primary" id="btn-start-run">Start Run</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="modal-chat">
     <div class="modal modal-xl">
       <div class="modal-header chat-header">
         <div class="chat-header-left">
           <span class="chat-model-name" id="chat-title">Chat</span>
+          <span class="chat-model-subname" id="chat-subtitle"></span>
           <div class="chat-metrics-inline" id="chat-metrics-inline"></div>
         </div>
         <button class="topbar-btn modal-close" data-modal="modal-chat">
@@ -192,6 +238,86 @@
         <input type="text" class="input" id="chat-input" placeholder="Type a message...">
         <button class="btn btn-primary" id="btn-send-chat">Send</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-history">
+    <div class="modal modal-md">
+      <div class="modal-header">
+        <h3>Run History</h3>
+        <button class="topbar-btn modal-close" data-modal="modal-history">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="text" class="input" id="history-search" placeholder="Search history...">
+        <div class="history-list" id="history-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-new-project">
+    <div class="modal modal-md">
+      <div class="modal-header">
+        <h3>New Project</h3>
+        <button class="topbar-btn modal-close" data-modal="modal-new-project">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Project name</label>
+          <input type="text" class="input" id="input-project-name" placeholder="my-project">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Directory</label>
+          <div class="project-dir-picker">
+            <span class="project-dir-path" id="project-dir-path">No directory selected</span>
+            <button class="btn btn-secondary" id="btn-select-directory" style="height: 32px; font-size: 12px;">Select</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close" data-modal="modal-new-project">Cancel</button>
+        <button class="btn btn-primary" id="btn-create-project">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-tasks">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>Tasks</h3>
+        <button class="btn btn-primary" id="btn-new-task" style="height: 32px; font-size: 12px; padding: 0 12px;">+ New</button>
+        <button class="topbar-btn modal-close" data-modal="modal-tasks">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body tasks-layout">
+        <div class="tasks-left">
+          <div class="tasks-progress">
+            <div class="tasks-progress-bar"><div class="tasks-progress-fill" id="tasks-progress-fill"></div></div>
+            <span class="tasks-progress-text" id="tasks-progress-text"></span>
+          </div>
+          <div class="tasks-filters">
+            <div class="tasks-tabs" id="tasks-tabs">
+              <button class="tasks-tab active" data-phase="all">All</button>
+              <button class="tasks-tab" data-phase="planning">Plan</button>
+              <button class="tasks-tab" data-phase="implementation">Build</button>
+              <button class="tasks-tab" data-phase="testing">Test</button>
+              <button class="tasks-tab" data-phase="done">Done</button>
+            </div>
+            <input type="text" class="input tasks-search" id="tasks-search" placeholder="Search...">
+          </div>
+          <div class="tasks-list" id="tasks-list"></div>
+        </div>
+        <div class="tasks-right" id="tasks-right">
+          <div class="tasks-empty-detail">
+            <p>Select a task</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer tasks-stats" id="tasks-stats"></div>
     </div>
   </div>
 
@@ -207,15 +333,22 @@
     <div id="dropdown-models-list"></div>
   </div>
 
+  <div class="dropdown-menu" id="dropdown-projects">
+    <div class="dropdown-header">Projects</div>
+    <div id="dropdown-projects-list"></div>
+  </div>
+
   <div class="context-menu" id="context-menu"></div>
 
   <div class="toast-container" id="toast-container"></div>
 
   <script src="js/app.js"></script>
   <script src="js/templates.js"></script>
+  <script src="js/projects.js"></script>
   <script src="js/files.js"></script>
   <script src="js/editor.js"></script>
   <script src="js/models.js"></script>
+  <script src="js/tasks.js"></script>
   <script src="js/modals.js"></script>
   <script src="js/notifications.js"></script>
 </body>
