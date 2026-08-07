@@ -156,18 +156,15 @@ const Models = {
       body.innerHTML = `
         <input type="text" class="input run-search" id="model-search" placeholder="Search models...">
         <div class="run-models-list" id="run-models-list">
-          ${models.map(m => {
-            const alias = this.getAlias(m.id);
-            return `
+          ${models.map(m => `
             <div class="model-item" data-model-id="${m.id}">
               <div class="model-info">
-                <div class="model-name">${alias ? alias.customName : m.name}</div>
-                <div class="model-alias">${m.name}</div>
+                <div class="model-name">${m.name}</div>
                 <div class="model-detail">${m.provider} - ${m.description}</div>
               </div>
               <button class="btn btn-primary" style="height: 32px; font-size: 12px; padding: 0 12px;">Run</button>
             </div>
-          `;}).join('')}
+          `).join('')}
         </div>
       `;
 
