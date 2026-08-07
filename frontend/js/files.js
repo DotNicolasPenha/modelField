@@ -24,6 +24,11 @@ const Files = {
   },
 
   createNew() {
+    if (!App.state.currentProject) {
+      Notifications.show('Select a project first');
+      return;
+    }
+
     const nameInput = document.getElementById('input-file-name');
     const templateSelect = document.getElementById('select-template');
 
@@ -34,15 +39,17 @@ const Files = {
     name = name.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-').toLowerCase();
     if (!name) name = 'untitled';
 
+    const projectFiles = App.getProjectFiles();
     let finalName = name;
     let counter = 1;
-    while (App.state.files.some(f => f.name === finalName)) {
+    while (projectFiles.some(f => f.name === finalName)) {
       finalName = `${name}-${counter}`;
       counter++;
     }
 
     const file = {
       id: Date.now().toString(),
+      projectId: App.state.currentProject,
       name: finalName,
       content: Templates[template] || '',
       created: new Date().toISOString(),
@@ -106,6 +113,7 @@ const Files = {
 
     const newFile = {
       id: Date.now().toString(),
+      projectId: file.projectId,
       name: `${file.name}-copy`,
       content: file.content,
       created: new Date().toISOString(),
@@ -219,10 +227,12 @@ const Files = {
     const list = document.getElementById('dropdown-files-list');
     if (!dropdown || !overlay || !list) return;
 
-    if (App.state.files.length === 0) {
+    const projectFiles = App.getProjectFiles();
+
+    if (projectFiles.length === 0) {
       list.innerHTML = '<div class="dropdown-empty">No files yet</div>';
     } else {
-      list.innerHTML = App.state.files.map(f => `
+      list.innerHTML = projectFiles.map(f => `
         <div class="dropdown-item" data-file-id="${f.id}">
           <span class="dropdown-item-name">${f.name}.md</span>
         </div>
@@ -248,6 +258,7 @@ const Files = {
   hideDropdowns() {
     document.getElementById('dropdown-files')?.classList.remove('active');
     document.getElementById('dropdown-models')?.classList.remove('active');
+    document.getElementById('dropdown-projects')?.classList.remove('active');
     document.getElementById('dropdown-overlay')?.classList.remove('active');
   }
 };
