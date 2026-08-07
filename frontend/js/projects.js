@@ -42,13 +42,32 @@ const Projects = {
         <div class="dropdown-item ${p.id === App.state.currentProject ? 'active' : ''}" data-project-id="${p.id}">
           <span class="dropdown-item-name">${p.name}</span>
           <span class="dropdown-item-status">${p.path}</span>
+          <div class="dropdown-item-actions">
+            <button class="dropdown-item-action" data-action="rename" title="Rename">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="dropdown-item-action danger" data-action="delete" title="Delete">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
         </div>
       `).join('');
 
       list.querySelectorAll('.dropdown-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.dropdown-item-action')) return;
           this.switchProject(item.dataset.projectId);
           Files.hideDropdowns();
+        });
+
+        item.querySelector('[data-action="rename"]')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.renameProject(item.dataset.projectId);
+        });
+
+        item.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.deleteProjectWithConfirm(item.dataset.projectId);
         });
       });
     }
@@ -157,5 +176,33 @@ const Projects = {
     Tasks.render();
     App.updateCounts();
     Notifications.show(`Project "${project.name}" deleted`);
+  },
+
+  async deleteProjectWithConfirm(projectId) {
+    const project = App.state.projects.find(p => p.id === projectId);
+    if (!project) return;
+    const confirmed = await Modals.confirm(`Delete project "${project.name}"? This will remove all its files.`);
+    if (confirmed) {
+      this.deleteProject(projectId);
+      Files.hideDropdowns();
+    }
+  },
+
+  async renameProject(projectId) {
+    const project = App.state.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const newName = await Modals.prompt('Rename project:', project.name, (val) => {
+      if (!val) return 'Name cannot be empty';
+      if (/[^a-zA-Z0-9-_ ]/.test(val)) return 'Only letters, numbers, hyphens and underscores';
+      return null;
+    });
+    if (newName) {
+      project.name = newName.replace(/\s+/g, '-').toLowerCase();
+      await App.saveProjects();
+      this.updateDisplay();
+      Files.hideDropdowns();
+      Notifications.show(`Project renamed to "${project.name}"`);
+    }
   }
 };

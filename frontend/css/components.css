@@ -633,3 +633,35 @@ select.input {
   border-color: #e74c3c;
   background: var(--background);
 }
+
+.dropdown-item-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: var(--space-2);
+}
+
+.dropdown-item-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.dropdown-item-action:hover {
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.dropdown-item-action.danger:hover {
+  color: #e74c3c;
+}
