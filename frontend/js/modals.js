@@ -38,6 +38,22 @@ const CustomSelect = {
       });
     });
 
+    // Search filter
+    const searchInput = dropdown.querySelector('.custom-select-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase().trim();
+        options.forEach(option => {
+          const text = option.textContent.toLowerCase();
+          option.style.display = text.includes(query) ? '' : 'none';
+        });
+        dropdown.querySelectorAll('.custom-select-group').forEach(group => {
+          const visible = group.querySelectorAll('.custom-select-option:not([style*="display: none"])');
+          group.style.display = visible.length === 0 ? 'none' : '';
+        });
+      });
+    }
+
     // Close on outside click
     document.addEventListener('click', () => {
       this.closeAll();
@@ -62,6 +78,13 @@ const CustomSelect = {
 
     el.classList.add('open');
     dropdown.style.display = 'flex';
+
+    const searchInput = dropdown.querySelector('.custom-select-search-input');
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.dispatchEvent(new Event('input'));
+      setTimeout(() => searchInput.focus(), 50);
+    }
   },
 
   close(el) {
@@ -197,10 +220,13 @@ const Modals = {
 
     input.value = '';
 
+    const currentRun = Models.currentRun;
+    const aiName = currentRun ? Models.getDisplayName(currentRun.model) : 'AI';
+
     setTimeout(() => {
       const aiMsg = document.createElement('div');
       aiMsg.className = 'chat-msg';
-      aiMsg.innerHTML = `<strong>AI</strong>I understand your question. This is a mock response since no real API is connected. In the full version, this would be processed by the selected model.`;
+      aiMsg.innerHTML = `<strong>${aiName}</strong>I understand your question. This is a mock response since no real API is connected. In the full version, this would be processed by the selected model.`;
       messages.appendChild(aiMsg);
       messages.scrollTop = messages.scrollHeight;
     }, 500);
