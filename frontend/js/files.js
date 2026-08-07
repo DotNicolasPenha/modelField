@@ -62,7 +62,10 @@ const Files = {
     nameInput.value = '';
     // Reset custom select to first option (Blank)
     const firstOption = templateSelect?.querySelector('.custom-select-option');
-    if (firstOption) CustomSelect.select(templateSelect, firstOption);
+    if (firstOption) {
+      CustomSelect.select(templateSelect, firstOption);
+      templateSelect._selectedValue = 'blank';
+    }
     Modals.close('modal-new-file');
 
     this.openFile(file.id);

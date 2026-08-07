@@ -17,6 +17,7 @@ const CustomSelect = {
     const firstOption = options[0];
     if (firstOption) {
       firstOption.classList.add('selected');
+      el._selectedValue = firstOption.dataset.value || 'blank';
     }
 
     // Toggle dropdown on trigger click
@@ -99,6 +100,7 @@ const CustomSelect = {
 
     options.forEach(o => o.classList.remove('selected'));
     option.classList.add('selected');
+    el._selectedValue = option.dataset.value || 'blank';
 
     if (trigger) {
       trigger.textContent = option.textContent;
@@ -108,8 +110,7 @@ const CustomSelect = {
   },
 
   getValue(el) {
-    const selected = el?.querySelector('.custom-select-option.selected');
-    return selected ? selected.dataset.value : 'blank';
+    return el?._selectedValue || 'blank';
   },
 
   closeAll(except) {
