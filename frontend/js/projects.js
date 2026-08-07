@@ -123,7 +123,8 @@ const Projects = {
       id: Date.now().toString(),
       name: name,
       path: this.selectedDir,
-      created: new Date().toISOString()
+      created: new Date().toISOString(),
+      checklist: []
     };
 
     App.state.projects.push(project);
@@ -147,6 +148,7 @@ const Projects = {
     this.updateDisplay();
     Files.renderTabs();
     Editor.render();
+    Checklist.render();
     App.updateCounts();
   },
 

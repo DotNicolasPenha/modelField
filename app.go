@@ -48,11 +48,19 @@ type RunRecord struct {
 	ResultSize   int     `json:"resultSize"`
 }
 
+type CheckItem struct {
+	ID          string `json:"id"`
+	Text        string `json:"text"`
+	Description string `json:"description"`
+	Checked     bool   `json:"checked"`
+}
+
 type Project struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	Created string `json:"created"`
+	ID        string      `json:"id"`
+	Name      string      `json:"name"`
+	Path      string      `json:"path"`
+	Created   string      `json:"created"`
+	Checklist []CheckItem `json:"checklist"`
 }
 
 type App struct {

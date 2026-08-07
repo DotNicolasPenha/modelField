@@ -20,6 +20,8 @@ const App = {
     Editor.init();
     Models.init();
     Modals.init();
+    Checklist.init();
+    Checklist.render();
     this.updateCounts();
   },
 

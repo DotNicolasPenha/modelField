@@ -66,13 +66,28 @@
         </div>
       </section>
 
-      <section class="models-panel">
-        <div class="models-header">
-          <span>Models</span>
-        </div>
-        <div class="models-list" id="models-list">
-          <div class="models-empty">No models running</div>
-        </div>
+      <section class="sidebar-panel">
+        <section class="models-panel">
+          <div class="models-header">
+            <span>Models</span>
+          </div>
+          <div class="models-list" id="models-list">
+            <div class="models-empty">No models running</div>
+          </div>
+        </section>
+
+        <section class="checklist-panel">
+          <div class="checklist-header">
+            <span>Checklist</span>
+            <span class="checklist-count" id="checklist-count"></span>
+          </div>
+          <div class="checklist-list" id="checklist-items">
+            <div class="checklist-empty">No items yet</div>
+          </div>
+          <div class="checklist-add">
+            <input type="text" class="checklist-add-input" id="checklist-add-input" placeholder="+ Add item">
+          </div>
+        </section>
       </section>
     </main>
   </div>
@@ -335,6 +350,7 @@
   <script src="js/files.js"></script>
   <script src="js/editor.js"></script>
   <script src="js/models.js"></script>
+  <script src="js/checklist.js"></script>
   <script src="js/modals.js"></script>
   <script src="js/notifications.js"></script>
 </body>

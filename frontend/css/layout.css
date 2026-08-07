@@ -101,8 +101,17 @@
   background: var(--background);
 }
 
-.models-panel {
+.sidebar-panel {
   flex: 3;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--background);
+  gap: 1px;
+}
+
+.models-panel {
+  flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
