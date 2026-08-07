@@ -22,6 +22,16 @@ const Models = {
 
   running: [],
   timeInterval: null,
+  currentRun: null,
+
+  getAlias(modelId) {
+    return App.state.modelAliases.find(a => a.modelId === modelId);
+  },
+
+  getDisplayName(model) {
+    const alias = this.getAlias(model.id);
+    return alias ? alias.customName : model.name;
+  },
 
   init() {
     document.getElementById('btn-running-count')?.addEventListener('click', (e) => {
@@ -30,6 +40,14 @@ const Models = {
 
     document.getElementById('btn-finished-count')?.addEventListener('click', (e) => {
       this.showModelsDropdown(e, 'finished');
+    });
+
+    document.getElementById('btn-start-run')?.addEventListener('click', () => {
+      this.confirmStartRun();
+    });
+
+    document.getElementById('btn-history')?.addEventListener('click', () => {
+      this.showHistory();
     });
 
     this.timeInterval = setInterval(() => this.updateTimes(), 30000);
@@ -138,15 +156,18 @@ const Models = {
       body.innerHTML = `
         <input type="text" class="input run-search" id="model-search" placeholder="Search models...">
         <div class="run-models-list" id="run-models-list">
-          ${models.map(m => `
+          ${models.map(m => {
+            const alias = this.getAlias(m.id);
+            return `
             <div class="model-item" data-model-id="${m.id}">
               <div class="model-info">
-                <div class="model-name">${m.name}</div>
+                <div class="model-name">${alias ? alias.customName : m.name}</div>
+                <div class="model-alias">${m.name}</div>
                 <div class="model-detail">${m.provider} - ${m.description}</div>
               </div>
               <button class="btn btn-primary" style="height: 32px; font-size: 12px; padding: 0 12px;">Run</button>
             </div>
-          `).join('')}
+          `;}).join('')}
         </div>
       `;
 
@@ -177,10 +198,52 @@ const Models = {
   },
 
   startRun(model) {
-    Modals.close('modal-run');
+    this.pendingRunModel = model;
 
+    const alias = this.getAlias(model.id);
+    document.getElementById('config-model-name').textContent = model.name;
+    document.getElementById('config-model-provider').textContent = model.provider;
+    document.getElementById('config-spec-name').textContent = this.getCurrentSpecName() + '.md';
+    document.getElementById('input-run-alias').value = alias ? alias.customName : '';
+
+    Modals.close('modal-run');
+    Modals.open('modal-run-config');
+  },
+
+  confirmStartRun() {
+    const model = this.pendingRunModel;
+    if (!model) return;
+
+    const aliasInput = document.getElementById('input-run-alias');
+    const aliasValue = aliasInput ? aliasInput.value.trim() : '';
+
+    if (aliasValue) {
+      const existing = App.state.modelAliases.findIndex(a => a.modelId === model.id);
+      if (existing >= 0) {
+        App.state.modelAliases[existing].customName = aliasValue;
+      } else {
+        App.state.modelAliases.push({ modelId: model.id, customName: aliasValue });
+      }
+      App.saveModelAliases();
+    } else {
+      const existing = App.state.modelAliases.findIndex(a => a.modelId === model.id);
+      if (existing >= 0) {
+        App.state.modelAliases.splice(existing, 1);
+        App.saveModelAliases();
+      }
+    }
+
+    Modals.close('modal-run-config');
+    this.executeRun(model);
+  },
+
+  getCurrentSpecName() {
     const file = App.state.files.find(f => f.id === App.state.activeFile);
-    const specName = file ? file.name : 'spec';
+    return file ? file.name : 'spec';
+  },
+
+  executeRun(model) {
+    const specName = this.getCurrentSpecName();
 
     const run = {
       id: Date.now().toString(),
@@ -197,7 +260,7 @@ const Models = {
     this.running.push(run);
     this.render();
     App.updateCounts();
-    Notifications.show(`Running ${model.name} on ${specName}.md`);
+    Notifications.show(`Running ${this.getDisplayName(model)} on ${specName}.md`);
 
     const delay = 2000 + Math.random() * 3000;
     setTimeout(() => this.finishRun(run.id), delay);
@@ -212,9 +275,29 @@ const Models = {
     run.result = this.generateMockResult(run);
     run.metrics = this.generateMetrics(run.model);
 
+    const alias = this.getAlias(run.model.id);
+    const record = {
+      id: run.id,
+      modelId: run.model.id,
+      modelName: run.model.name,
+      alias: alias ? alias.customName : '',
+      specName: run.spec,
+      status: 'finished',
+      started: run.started,
+      finished: run.finished,
+      result: run.result,
+      inputTokens: run.metrics.inputTokens,
+      outputTokens: run.metrics.outputTokens,
+      duration: run.metrics.duration,
+      cost: run.metrics.cost,
+      resultSize: run.metrics.resultSize
+    };
+    App.state.runHistory.unshift(record);
+    App.saveRunHistory();
+
     this.render();
     App.updateCounts();
-    Notifications.show(`${run.model.name} finished processing ${run.spec}.md`);
+    Notifications.show(`${this.getDisplayName(run.model)} finished processing ${run.spec}.md`);
   },
 
   removeRun(runId) {
@@ -224,14 +307,15 @@ const Models = {
     this.running = this.running.filter(r => r.id !== runId);
     this.render();
     App.updateCounts();
-    Notifications.show(`${run.model.name} removed from list`);
+    Notifications.show(`${this.getDisplayName(run.model)} removed from list`);
   },
 
   generateMockResult(run) {
+    const displayName = this.getDisplayName(run.model);
     return `# Analysis of ${run.spec}.md
 
 ## Summary
-The specification has been analyzed by ${run.model.name}.
+The specification has been analyzed by ${displayName}.
 
 ## Observations
 - The structure follows standard practices
@@ -279,11 +363,13 @@ The specification is clear and well-organized. Minor improvements suggested for 
     list.innerHTML = this.running.map(run => {
       const timeSource = run.status === 'finished' ? (run.finished || run.started) : run.started;
       const timeText = this.timeAgo(timeSource);
+      const alias = this.getAlias(run.model.id);
 
       return `
         <div class="model-item" data-run-id="${run.id}">
           <div class="model-info">
-            <div class="model-name">${run.model.name}</div>
+            <div class="model-name">${alias ? alias.customName : run.model.name}</div>
+            <div class="model-alias">${run.model.name}</div>
             <div class="model-detail">${run.spec}.md</div>
           </div>
           <span class="model-time" data-time="${timeSource}">${timeText}</span>
@@ -345,9 +431,13 @@ The specification is clear and well-organized. Minor improvements suggested for 
         const metricsText = run.metrics
           ? `${this.formatTokens(run.metrics.inputTokens + run.metrics.outputTokens)} tokens · ${this.formatDuration(run.metrics.duration)}`
           : '';
+        const alias = this.getAlias(run.model.id);
         return `
           <div class="dropdown-item" data-run-id="${run.id}">
-            <span class="dropdown-item-name">${run.model.name}</span>
+            <div class="dropdown-item-names">
+              <span class="dropdown-item-name">${alias ? alias.customName : run.model.name}</span>
+              <span class="dropdown-item-alias">${run.model.name}</span>
+            </div>
             <span class="dropdown-item-status">${metricsText || timeText}</span>
           </div>
         `;
@@ -376,13 +466,17 @@ The specification is clear and well-organized. Minor improvements suggested for 
 
   openChat(run) {
     run.lastAccessed = new Date().toISOString();
+    this.currentRun = run;
 
     const title = document.getElementById('chat-title');
+    const subtitle = document.getElementById('chat-subtitle');
     const metricsInline = document.getElementById('chat-metrics-inline');
     const messages = document.getElementById('chat-messages');
     const input = document.getElementById('chat-input');
 
-    if (title) title.textContent = run.model.name;
+    const displayName = this.getDisplayName(run.model);
+    if (title) title.textContent = displayName;
+    if (subtitle) subtitle.textContent = run.model.name;
 
     if (metricsInline) {
       if (run.metrics) {
@@ -410,13 +504,154 @@ The specification is clear and well-organized. Minor improvements suggested for 
     if (messages) {
       messages.innerHTML = `
         <div class="chat-msg">
-          <strong>${run.model.name}</strong>
+          <strong>${displayName}</strong>
           ${run.result}
         </div>
       `;
     }
     if (input) input.value = '';
 
+    Modals.open('modal-chat');
+  },
+
+  showHistory() {
+    const list = document.getElementById('history-list');
+    const searchInput = document.getElementById('history-search');
+    if (!list) return;
+
+    this.renderHistory();
+
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.addEventListener('input', () => {
+        this.renderHistory(searchInput.value.toLowerCase().trim());
+      });
+    }
+
+    Modals.open('modal-history');
+  },
+
+  renderHistory(query = '') {
+    const list = document.getElementById('history-list');
+    if (!list) return;
+
+    let history = App.state.runHistory;
+
+    if (query) {
+      history = history.filter(r => {
+        const name = (r.alias || r.modelName).toLowerCase();
+        const spec = r.specName.toLowerCase();
+        return name.includes(query) || spec.includes(query);
+      });
+    }
+
+    if (history.length === 0) {
+      list.innerHTML = '<div class="history-empty">No run history</div>';
+      return;
+    }
+
+    list.innerHTML = history.map(record => {
+      const displayName = record.alias || record.modelName;
+      const timeText = this.timeAgo(record.finished || record.started);
+      return `
+        <div class="history-item" data-record-id="${record.id}">
+          <div class="history-item-info">
+            <div class="history-item-name">${displayName}</div>
+            <div class="history-item-alias">${record.modelName}</div>
+            <div class="history-item-spec">${record.specName}.md</div>
+          </div>
+          <div class="history-item-metrics">
+            <span>${this.formatTokens(record.inputTokens + record.outputTokens)}</span>
+            <span>${this.formatDuration(record.duration)}</span>
+            <span>${this.formatCost(record.cost)}</span>
+          </div>
+          <span class="history-item-time">${timeText}</span>
+          <button class="history-item-delete" title="Delete">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('.history-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.history-item-delete')) return;
+        const recordId = item.dataset.recordId;
+        const record = App.state.runHistory.find(r => r.id === recordId);
+        if (record) this.openHistoryChat(record);
+      });
+    });
+
+    list.querySelectorAll('.history-item-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const recordId = btn.closest('.history-item').dataset.recordId;
+        this.deleteHistoryRecord(recordId);
+      });
+    });
+  },
+
+  deleteHistoryRecord(recordId) {
+    App.state.runHistory = App.state.runHistory.filter(r => r.id !== recordId);
+    App.saveRunHistory();
+    this.renderHistory();
+    Notifications.show('History record deleted');
+  },
+
+  openHistoryChat(record) {
+    const displayName = record.alias || record.modelName;
+
+    const title = document.getElementById('chat-title');
+    const subtitle = document.getElementById('chat-subtitle');
+    const metricsInline = document.getElementById('chat-metrics-inline');
+    const messages = document.getElementById('chat-messages');
+    const input = document.getElementById('chat-input');
+
+    this.currentRun = {
+      model: { id: record.modelId, name: record.modelName },
+      result: record.result,
+      metrics: {
+        inputTokens: record.inputTokens,
+        outputTokens: record.outputTokens,
+        duration: record.duration,
+        cost: record.cost,
+        resultSize: record.resultSize
+      }
+    };
+
+    if (title) title.textContent = displayName;
+    if (subtitle) subtitle.textContent = record.modelName;
+
+    if (metricsInline) {
+      metricsInline.innerHTML = `
+        <span class="chat-metric-item">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          ${this.formatTokens(record.inputTokens)} in · ${this.formatTokens(record.outputTokens)} out
+        </span>
+        <span class="chat-metric-item">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          ${this.formatDuration(record.duration)}
+        </span>
+        <span class="chat-metric-item">
+          ${this.formatCost(record.cost)}
+        </span>
+        <span class="chat-metric-item">
+          ${this.formatSize(record.resultSize)}
+        </span>
+      `;
+    }
+
+    if (messages) {
+      messages.innerHTML = `
+        <div class="chat-msg">
+          <strong>${displayName}</strong>
+          ${record.result}
+        </div>
+      `;
+    }
+    if (input) input.value = '';
+
+    Modals.close('modal-history');
     Modals.open('modal-chat');
   }
 };
