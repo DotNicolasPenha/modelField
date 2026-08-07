@@ -86,6 +86,17 @@
   color: var(--secondary);
 }
 
+.editor-toolbar-project {
+  color: var(--muted);
+}
+
+.editor-toolbar-separator {
+  color: var(--muted);
+}
+  font-size: 13px;
+  color: var(--secondary);
+}
+
 .editor-toolbar-right {
   display: flex;
   align-items: center;
@@ -416,6 +427,12 @@
   white-space: nowrap;
 }
 
+.chat-model-subname {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .chat-metrics-inline {
   display: flex;
   align-items: center;
@@ -436,4 +453,114 @@
   width: 14px;
   height: 14px;
   opacity: 0.7;
+}
+
+.run-config-model {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}
+
+.run-config-model-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.run-config-model-provider {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.run-config-spec {
+  font-size: 13px;
+  color: var(--secondary);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+
+.history-item:hover {
+  background: var(--border);
+}
+
+.history-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item-alias {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.history-item-spec {
+  font-size: 12px;
+  color: var(--secondary);
+}
+
+.history-item-metrics {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.history-item-time {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.history-item-delete {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: color 0.15s var(--ease);
+  flex-shrink: 0;
+}
+
+.history-item-delete:hover {
+  color: var(--foreground);
+}
+
+.history-empty {
+  text-align: center;
+  padding: var(--space-6);
+  color: var(--muted);
+  font-size: 13px;
 }
