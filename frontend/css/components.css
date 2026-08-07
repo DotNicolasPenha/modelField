@@ -610,3 +610,26 @@ select.input {
   color: var(--foreground);
   font-weight: 500;
 }
+
+.modal-confirm-message,
+.modal-prompt-message {
+  font-size: 14px;
+  color: var(--foreground);
+  line-height: 1.5;
+}
+
+.modal-prompt-error {
+  font-size: 12px;
+  color: #e74c3c;
+  min-height: 18px;
+  margin-top: var(--space-1);
+}
+
+.input.input-error {
+  border-color: #e74c3c;
+}
+
+.input.input-error:focus {
+  border-color: #e74c3c;
+  background: var(--background);
+}

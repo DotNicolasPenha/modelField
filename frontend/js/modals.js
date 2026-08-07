@@ -233,5 +233,95 @@ const Modals = {
     }, 500);
 
     messages.scrollTop = messages.scrollHeight;
+  },
+
+  confirm(message) {
+    return new Promise(resolve => {
+      const msgEl = document.getElementById('confirm-message');
+      const okBtn = document.getElementById('btn-confirm-ok');
+      const cancelBtn = document.getElementById('btn-confirm-cancel');
+      if (msgEl) msgEl.textContent = message;
+
+      const cleanup = () => {
+        okBtn?.removeEventListener('click', onOk);
+        cancelBtn?.removeEventListener('click', onCancel);
+        this.close('modal-confirm');
+      };
+
+      const onOk = () => { cleanup(); resolve(true); };
+      const onCancel = () => { cleanup(); resolve(false); };
+
+      okBtn?.addEventListener('click', onOk);
+      cancelBtn?.addEventListener('click', onCancel);
+
+      this.open('modal-confirm');
+      setTimeout(() => okBtn?.focus(), 100);
+    });
+  },
+
+  prompt(message, defaultValue = '', validator = null) {
+    return new Promise(resolve => {
+      const msgEl = document.getElementById('prompt-message');
+      const input = document.getElementById('prompt-input');
+      const errorEl = document.getElementById('prompt-error');
+      const okBtn = document.getElementById('btn-prompt-ok');
+      const cancelBtn = document.getElementById('btn-prompt-cancel');
+
+      if (msgEl) msgEl.textContent = message;
+      if (input) {
+        input.value = defaultValue;
+        input.className = 'input';
+      }
+      if (errorEl) errorEl.textContent = '';
+
+      const validate = () => {
+        const val = input.value.trim();
+        if (validator) {
+          const err = validator(val);
+          if (err) {
+            if (errorEl) errorEl.textContent = err;
+            input.classList.add('input-error');
+            if (okBtn) okBtn.disabled = true;
+            return false;
+          }
+        }
+        if (errorEl) errorEl.textContent = '';
+        input.classList.remove('input-error');
+        if (okBtn) okBtn.disabled = false;
+        return true;
+      };
+
+      const cleanup = () => {
+        okBtn?.removeEventListener('click', onOk);
+        cancelBtn?.removeEventListener('click', onCancel);
+        input?.removeEventListener('input', validate);
+        input?.removeEventListener('keydown', onKeydown);
+        this.close('modal-prompt');
+      };
+
+      const onOk = () => {
+        if (!validate()) return;
+        cleanup();
+        resolve(input.value.trim());
+      };
+
+      const onCancel = () => { cleanup(); resolve(null); };
+
+      const onKeydown = (e) => {
+        if (e.key === 'Enter') onOk();
+      };
+
+      okBtn?.addEventListener('click', onOk);
+      cancelBtn?.addEventListener('click', onCancel);
+      input?.addEventListener('input', validate);
+      input?.addEventListener('keydown', onKeydown);
+
+      this.open('modal-prompt');
+      setTimeout(() => {
+        input?.focus();
+        input?.select();
+        validate();
+      }, 100);
+    });
   }
 };
