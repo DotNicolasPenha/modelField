@@ -118,6 +118,7 @@
 }
 
 .modal-overlay {
+  border: 1px solid var(--border);
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
@@ -145,7 +146,8 @@
   flex-direction: column;
   transform: translateY(8px);
   transition: transform var(--duration-slow) var(--ease);
-}
+  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--surface);}
 
 .modal-overlay.active .modal {
   transform: translateY(0);
