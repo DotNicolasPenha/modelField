@@ -43,23 +43,20 @@ const Editor = {
     const lineCount = (file.content || '').split('\n').length;
     const lines = Array.from({ length: Math.max(lineCount, 20) }, (_, i) => i + 1);
 
+    const displayName = file.isDiskFile ? file.name : file.name + '.md';
+    const readOnly = file.isDiskFile ? ' <span class="editor-toolbar-readonly">(read-only)</span>' : '';
+
     area.innerHTML = `
       <div class="editor-toolbar">
         <div class="editor-toolbar-left">
           <span class="editor-toolbar-project">${project ? project.name : ''}</span>
           <span class="editor-toolbar-separator">/</span>
-          <span>${file.name}.md</span>
-        </div>
-        <div class="editor-toolbar-right">
-          <button class="btn btn-primary" id="btn-run" style="height: 32px; font-size: 13px; padding: 0 12px;">
-            Run on
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
+          <span>${displayName}${readOnly}</span>
         </div>
       </div>
       <div class="editor-content">
         <div class="editor-line-numbers" id="line-numbers">${lines.map(n => `<div>${n}</div>`).join('')}</div>
-        <textarea class="editor-textarea" id="editor-textarea" spellcheck="false">${this.escapeHtml(file.content || '')}</textarea>
+        <textarea class="editor-textarea" id="editor-textarea" spellcheck="false" ${file.isDiskFile ? 'readonly' : ''}>${this.escapeHtml(file.content || '')}</textarea>
       </div>
       <div class="editor-status">
         <div class="editor-status-left">
@@ -77,6 +74,7 @@ const Editor = {
     const cursorPos = document.getElementById('cursor-pos');
 
     textarea?.addEventListener('input', () => {
+      if (file.isDiskFile) return;
       file.content = textarea.value;
       file.modified = new Date().toISOString();
       App.saveState();
@@ -89,6 +87,7 @@ const Editor = {
     });
 
     textarea?.addEventListener('keydown', (e) => {
+      if (file.isDiskFile) return;
       if (e.key === 'Tab') {
         e.preventDefault();
         const start = textarea.selectionStart;
@@ -101,10 +100,6 @@ const Editor = {
 
     textarea?.addEventListener('click', () => this.updateCursorPos(textarea, cursorPos));
     textarea?.addEventListener('keyup', () => this.updateCursorPos(textarea, cursorPos));
-
-    document.getElementById('btn-run')?.addEventListener('click', () => {
-      Models.showRunModal();
-    });
 
     textarea?.focus();
   },
