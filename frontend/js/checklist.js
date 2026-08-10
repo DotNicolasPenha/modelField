@@ -30,31 +30,6 @@ const Checklist = {
       return;
     }
 
-    panel.innerHTML = items.map(item => {
-      const el = document.createElement('div');
-      el.className = `checklist-item ${item.checked ? 'checked' : ''} ${item.id === this.expandedId ? 'expanded' : ''}`;
-      el.dataset.id = item.id;
-      el.innerHTML = `
-        <div class="checklist-item-row">
-          <label class="checklist-checkbox">
-            <input type="checkbox" ${item.checked ? 'checked' : ''}>
-            <span class="checklist-checkmark"></span>
-          </label>
-          <span class="checklist-item-text" title="Click to edit">${item.text}</span>
-          <button class="checklist-item-expand" title="Expand">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <button class="checklist-item-delete" title="Delete">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div class="checklist-item-desc-area">
-          <textarea class="checklist-item-desc" placeholder="Add description...">${item.description || ''}</textarea>
-        </div>
-      `;
-      return el;
-    });
-
     panel.innerHTML = '';
     items.forEach(item => {
       const el = document.createElement('div');

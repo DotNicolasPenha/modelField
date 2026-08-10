@@ -50,6 +50,10 @@ const Models = {
       this.showHistory();
     });
 
+    document.getElementById('btn-context-run')?.addEventListener('click', () => {
+      this.showRunModal();
+    });
+
     this.timeInterval = setInterval(() => this.updateTimes(), 30000);
     this.render();
   },
@@ -200,8 +204,24 @@ const Models = {
     const alias = this.getAlias(model.id);
     document.getElementById('config-model-name').textContent = model.name;
     document.getElementById('config-model-provider').textContent = model.provider;
-    document.getElementById('config-spec-name').textContent = this.getCurrentSpecName() + '.md';
-    document.getElementById('input-run-alias').value = alias ? alias.customName : '';
+
+    const contextList = document.getElementById('run-context-list');
+    const context = FileExplorer.getContext();
+    if (contextList) {
+      if (context.length === 0) {
+        contextList.innerHTML = '<div class="text-muted" style="font-size: 12px;">No context selected. Select specs or files from the sidebar.</div>';
+      } else {
+        contextList.innerHTML = context.map(c =>
+          `<div class="run-context-item"><span class="run-context-item-icon">${c.type === 'spec' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>'}</span> ${c.name} <span class="run-context-badge">${c.type}</span></div>`
+        ).join('');
+      }
+    }
+
+    const promptInput = document.getElementById('input-run-prompt');
+    if (promptInput) promptInput.value = '';
+
+    const errorEl = document.getElementById('run-validation-error');
+    if (errorEl) errorEl.textContent = '';
 
     Modals.close('modal-run');
     Modals.open('modal-run-config');
@@ -211,27 +231,25 @@ const Models = {
     const model = this.pendingRunModel;
     if (!model) return;
 
-    const aliasInput = document.getElementById('input-run-alias');
-    const aliasValue = aliasInput ? aliasInput.value.trim() : '';
+    const context = FileExplorer.getContext();
+    const specs = context.filter(c => c.type === 'spec');
+    const promptInput = document.getElementById('input-run-prompt');
+    const prompt = promptInput ? promptInput.value.trim() : '';
+    const errorEl = document.getElementById('run-validation-error');
 
-    if (aliasValue) {
-      const existing = App.state.modelAliases.findIndex(a => a.modelId === model.id);
-      if (existing >= 0) {
-        App.state.modelAliases[existing].customName = aliasValue;
-      } else {
-        App.state.modelAliases.push({ modelId: model.id, customName: aliasValue });
-      }
-      App.saveModelAliases();
-    } else {
-      const existing = App.state.modelAliases.findIndex(a => a.modelId === model.id);
-      if (existing >= 0) {
-        App.state.modelAliases.splice(existing, 1);
-        App.saveModelAliases();
-      }
+    if (specs.length === 0) {
+      if (errorEl) errorEl.textContent = 'Select at least one spec';
+      return;
+    }
+    if (!prompt) {
+      if (errorEl) errorEl.textContent = 'Write a prompt';
+      return;
     }
 
+    if (errorEl) errorEl.textContent = '';
+
     Modals.close('modal-run-config');
-    this.executeRun(model);
+    this.executeRun(model, context, prompt);
   },
 
   getCurrentSpecName() {
@@ -239,13 +257,18 @@ const Models = {
     return file ? file.name : 'spec';
   },
 
-  executeRun(model) {
-    const specName = this.getCurrentSpecName();
+  executeRun(model, context, prompt) {
+    const specNames = context.filter(c => c.type === 'spec').map(c => c.name.replace(/\.md$/, ''));
+    const filePaths = context.filter(c => c.type === 'file').map(c => c.path);
+    const specName = specNames[0] || 'spec';
 
     const run = {
       id: Date.now().toString(),
       model: model,
       spec: specName,
+      specNames: specNames,
+      filePaths: filePaths,
+      prompt: prompt,
       status: 'running',
       started: new Date().toISOString(),
       finished: null,
@@ -257,7 +280,7 @@ const Models = {
     this.running.push(run);
     this.render();
     App.updateCounts();
-    Notifications.show(`Running ${this.getDisplayName(model)} on ${specName}.md`);
+    Notifications.show(`Running ${this.getDisplayName(model)} on ${specNames.join(', ')}`);
 
     requestAnimationFrame(() => {
       const el = document.querySelector(`.model-item[data-run-id="${run.id}"]`);
@@ -287,6 +310,9 @@ const Models = {
       modelName: run.model.name,
       alias: alias ? alias.customName : '',
       specName: run.spec,
+      specNames: run.specNames || [run.spec],
+      filePaths: run.filePaths || [],
+      prompt: run.prompt || '',
       status: 'finished',
       started: run.started,
       finished: run.finished,
@@ -302,7 +328,7 @@ const Models = {
 
     this.render();
     App.updateCounts();
-    Notifications.show(`${this.getDisplayName(run.model)} finished processing ${run.spec}.md`);
+    Notifications.show(`${this.getDisplayName(run.model)} finished processing ${(run.specNames || [run.spec]).join(', ')}`);
 
     requestAnimationFrame(() => {
       const el = document.querySelector(`.model-item[data-run-id="${run.id}"] .model-status`);

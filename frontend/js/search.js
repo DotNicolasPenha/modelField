@@ -20,7 +20,7 @@ const Search = {
     });
 
     document.addEventListener('click', (e) => {
-      if (!e.target.closest('.search-wrapper')) this.close();
+      if (!e.target.closest('.search-wrapper') && !e.target.closest('.search-results')) this.close();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -134,6 +134,9 @@ const Search = {
       history: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
     };
 
+    const btnOpen = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+    const btnContext = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+
     this.results.forEach((r, i) => {
       if (!grouped[r.type]) grouped[r.type] = [];
       grouped[r.type].push({ ...r, globalIndex: i });
@@ -144,44 +147,80 @@ const Search = {
       if (!grouped[type] || grouped[type].length === 0) return;
       html += `<div class="search-category"><span class="search-category-label">${labels[type]}</span>`;
       grouped[type].forEach(r => {
-        const canAdd = r.type === 'spec' || r.type === 'file';
-        const addBtn = canAdd ? `<button class="search-item-add" data-index="${r.globalIndex}" data-type="${r.type}" title="Add to context">+</button>` : '';
         let pathHtml = '';
-        if (r.path && (r.type === 'file' || r.type === 'folder')) {
+        let actionsHtml = '';
+
+        if (r.type === 'spec') {
           const project = App.getCurrentProject();
-          let relPath = r.path;
-          if (project?.path && r.path.startsWith(project.path)) {
-            relPath = r.path.substring(project.path.length).replace(/^\//, '');
+          pathHtml = `<span class="search-item-path">${project ? project.name : 'Project'}</span>`;
+          actionsHtml = `<button class="search-item-btn" data-action="open-editor" data-index="${r.globalIndex}" title="Abrir no editor">${btnOpen}</button><button class="search-item-btn" data-action="add-context" data-index="${r.globalIndex}" title="Adicionar ao contexto">${btnContext}</button>`;
+        } else if (r.type === 'file') {
+          if (r.path) {
+            const project = App.getCurrentProject();
+            let relPath = r.path;
+            if (project?.path && r.path.startsWith(project.path)) {
+              relPath = r.path.substring(project.path.length).replace(/^\//, '');
+            }
+            pathHtml = `<span class="search-item-path">${relPath}</span>`;
           }
-          pathHtml = `<span class="search-item-path">${relPath}</span>`;
+          actionsHtml = `<button class="search-item-btn" data-action="open-editor" data-index="${r.globalIndex}" title="Abrir no editor">${btnOpen}</button><button class="search-item-btn" data-action="add-context" data-index="${r.globalIndex}" title="Adicionar ao contexto">${btnContext}</button>`;
+        } else if (r.type === 'folder') {
+          if (r.path) {
+            const project = App.getCurrentProject();
+            let relPath = r.path;
+            if (project?.path && r.path.startsWith(project.path)) {
+              relPath = r.path.substring(project.path.length).replace(/^\//, '');
+            }
+            pathHtml = `<span class="search-item-path">${relPath}</span>`;
+          }
+          actionsHtml = `<button class="search-item-btn" data-action="add-context" data-index="${r.globalIndex}" title="Adicionar ao contexto">${btnContext}</button>`;
+        } else if (r.type === 'model') {
+          pathHtml = `<span class="search-item-path">${r.item.provider}</span>`;
+          actionsHtml = `<button class="search-item-btn" data-action="select-model" data-index="${r.globalIndex}" title="Selecionar modelo">${btnContext}</button>`;
+        } else if (r.type === 'task') {
+          actionsHtml = `<button class="search-item-btn" data-action="add-context" data-index="${r.globalIndex}" title="Adicionar ao contexto">${btnContext}</button>`;
+        } else if (r.type === 'history') {
+          actionsHtml = `<button class="search-item-btn" data-action="re-run" data-index="${r.globalIndex}" title="Reabrir">${btnOpen}</button>`;
         }
-        html += `<div class="search-item" data-index="${r.globalIndex}" data-type="${r.type}">${icons[r.type]}<div class="search-item-text"><span>${r.name}</span>${pathHtml}</div>${addBtn}</div>`;
+
+        html += `<div class="search-item" data-index="${r.globalIndex}" data-type="${r.type}">${icons[r.type]}<div class="search-item-text"><span class="search-item-name">${r.name}</span>${pathHtml}</div><div class="search-item-actions">${actionsHtml}</div></div>`;
       });
       html += '</div>';
     });
 
     dropdown.innerHTML = html;
     dropdown.classList.add('active');
-    document.getElementById('dropdown-overlay')?.classList.add('active');
 
     dropdown.querySelectorAll('.search-item').forEach(el => {
       el.addEventListener('click', (e) => {
-        if (e.target.closest('.search-item-add')) return;
+        if (e.target.closest('.search-item-btn')) return;
         const idx = parseInt(el.dataset.index);
         this.openItem(this.results[idx]);
       });
     });
 
-    dropdown.querySelectorAll('.search-item-add').forEach(btn => {
+    dropdown.querySelectorAll('.search-item-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const idx = parseInt(btn.dataset.index);
         const result = this.results[idx];
-        if (result) this.addToContext(result);
+        const action = btn.dataset.action;
+        if (!result) return;
+
+        if (action === 'open-editor') {
+          this.openItem(result);
+        } else if (action === 'add-context') {
+          this.addToContext(result);
+        } else if (action === 'select-model') {
+          if (result.item) {
+            Models.selectModel(result.item);
+            Notifications.show(`${result.item.name} selecionado`);
+          }
+        } else if (action === 're-run') {
+          this.openItem(result);
+        }
       });
     });
-
-    document.getElementById('dropdown-overlay')?.addEventListener('click', () => this.close(), { once: true });
   },
 
   onKeydown(e) {
@@ -378,6 +417,8 @@ const Search = {
   close() {
     document.getElementById('search-results')?.classList.remove('active');
     document.getElementById('dropdown-overlay')?.classList.remove('active');
+    const input = document.getElementById('search-input');
+    if (input) input.value = '';
     this.selectedIndex = -1;
   },
 

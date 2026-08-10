@@ -36,7 +36,7 @@ const Editor = {
       return;
     }
 
-    const file = App.state.files.find(f => f.id === App.state.activeFile);
+    const file = App.state.files.find(f => f.id === App.state.activeFile) || App.state.diskCache[App.state.activeFile];
     if (!file) return;
 
     const project = App.getCurrentProject();

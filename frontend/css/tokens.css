@@ -1,53 +1,179 @@
 :root {
-  --forceground: #09090C;
-  --background: #0F0F11;
-  --foreground: #F5F5F7;
-  --secondary: #A1A1A6;
-  --muted: #86868B;
+  /* ── Colors ── */
+  --bg: #0F0F11;
   --surface: #18181B;
-  --border: #2C2C2E;
+  --surface-secondary: #1C1C1E;
 
+  --text-primary: #F5F5F7;
+  --text-secondary: #A1A1A6;
+  --text-tertiary: #6E6E73;
+  --text-placeholder: #8E8E93;
 
-  --font-display: "Manrope", sans-serif;
-  --font-ui: "Inter Tight", sans-serif;
+  --border: rgba(255, 255, 255, 0.10);
+  --border-subtle: rgba(255, 255, 255, 0.06);
 
+  --overlay: rgba(255, 255, 255, 0.05);
+  --overlay-hover: rgba(255, 255, 255, 0.08);
+  --overlay-active: rgba(255, 255, 255, 0.12);
 
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 24px;
+  --accent: #0A84FF;
 
+  /* ── Typography ── */
+  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  --font-display: "Manrope", var(--font-family);
+  --font-ui: "Inter Tight", var(--font-family);
 
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
+  --font-size-2xl: 20px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.15;
+  --line-height-normal: 1.4;
+  --line-height-relaxed: 1.5;
+
+  /* ── Spacing ── */
   --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
 
+  /* ── Topbar ── */
+  --topbar-height: 52px;
+  --topbar-padding-x: 12px;
+  --topbar-gap: 8px;
+  --topbar-control-height: 32px;
+  --topbar-control-radius: 8px;
+  --topbar-icon-primary: 16px;
+  --topbar-icon-secondary: 14px;
 
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  /* ── Search ── */
+  --search-width: 420px;
+  --search-expanded-width: 480px;
+  --search-height: 32px;
+  --search-radius: 10px;
+  --search-icon-size: 15px;
+  --search-icon-gap: 7px;
+  --search-padding-x: 10px;
+  --search-kbd-height: 20px;
+  --search-kbd-radius: 5px;
+  --search-kbd-padding-x: 5px;
+
+  /* ── Search Panel ── */
+  --search-panel-width: 560px;
+  --search-panel-radius: 14px;
+  --search-panel-padding: 8px;
+  --search-result-height: 44px;
+  --search-result-radius: 8px;
+  --search-result-padding-x: 10px;
+  --search-result-padding-y: 7px;
+  --result-icon-size: 18px;
+  --result-gap: 10px;
+  --result-title-size: 13px;
+  --result-subtitle-size: 12px;
+
+  /* ── Radius ── */
+  --radius-xs: 5px;
+  --radius-sm: 7px;
+  --radius-md: 9px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-pill: 999px;
+
+  /* ── Motion ── */
+  --duration-instant: 80ms;
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --duration-medium: 240ms;
+  --duration-slow: 320ms;
+
+  /* ── Easing ── */
+  --ease: cubic-bezier(0.2, 0.0, 0.0, 1);
+  --ease-enter: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0.0, 1, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0.9, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  /* ── Elevation ── */
+  --shadow-none: none;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.14);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.18);
+  --shadow-search: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-popover: 0 12px 40px rgba(0, 0, 0, 0.16);
 
-  --duration-fast: 150ms;
-  --duration-normal: 250ms;
-  --duration-slow: 400ms;
+  /* ── Material ── */
+  --material-blur: 20px;
+  --material-saturation: 115%;
+  --topbar-bg: rgba(30, 30, 32, 0.72);
 
+  /* ── Z-Index ── */
+  --z-base: 0;
+  --z-topbar: 100;
+  --z-dropdown: 200;
+  --z-popover: 300;
+  --z-modal: 400;
+  --z-toast: 500;
 
-  transition: background-color var(--duration-slow) var(--ease), color var(--duration-slow) var(--ease);
+  /* ── Legacy aliases (deprecated, migrate away) ── */
+  --foreground: var(--text-primary);
+  --secondary: var(--text-secondary);
+  --muted: var(--text-tertiary);
+  --tertiary: var(--text-tertiary);
+  --background: var(--bg);
+
+  /* ── Global transitions ── */
+  transition: background-color var(--duration-slow) var(--ease),
+              color var(--duration-slow) var(--ease);
 }
 
-
-
 :root.dark {
-  --forceground: #FFFFFF;
-  --background: #EBEBFA;
-  --foreground: #1D1D1F;
-  --secondary: #6E6E73;
-  --muted: #8E8E93;
-  --surface: #EAEBFF;
-  --border: #DDDDFF;
+  --bg: #F5F5F7;
+  --surface: #FFFFFF;
+  --surface-secondary: #F2F2F7;
+
+  --text-primary: #1D1D1F;
+  --text-secondary: #6E6E73;
+  --text-tertiary: #86868B;
+  --text-placeholder: #8E8E93;
+
+  --border: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.05);
+
+  --overlay: rgba(0, 0, 0, 0.04);
+  --overlay-hover: rgba(0, 0, 0, 0.07);
+  --overlay-active: rgba(0, 0, 0, 0.10);
+
+  --accent: #007AFF;
+
+  --topbar-bg: rgba(245, 245, 247, 0.72);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.16);
+  --shadow-search: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-popover: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
 }

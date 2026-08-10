@@ -99,13 +99,7 @@ const FileBrowser = {
       diskPath: entry.path
     };
 
-    const existing = App.state.files.find(f => f.id === diskFile.id);
-    if (existing) {
-      existing.content = content;
-      existing.modified = entry.modified;
-    } else {
-      App.state.files.push(diskFile);
-    }
+    App.state.diskCache[diskFile.id] = diskFile;
 
     Files.openFile(diskFile.id);
   },
@@ -178,10 +172,16 @@ const FileBrowser = {
       return '<div class="checklist-empty">Lixeira vazia</div>';
     }
 
-    let html = '';
+    const iconTrash = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+
+    let html = `<div class="trash-header">
+      <button class="trash-empty-btn" id="trash-empty-all" title="Deletar tudo permanentemente">${iconTrash} Limpar lixeira</button>
+    </div>`;
+
     trashed.forEach(f => {
       const actions = `<div class="file-browser-item-actions">
         <button class="file-browser-item-action" data-action="restore" title="Restaurar" data-file-id="${f.id}">${this.icons.restore}</button>
+        <button class="file-browser-item-action file-browser-item-action-danger" data-action="permanent-delete" title="Deletar permanentemente" data-file-id="${f.id}">${iconTrash}</button>
       </div>`;
       html += `<div class="file-browser-item file-browser-item-trashed" data-trash-id="${f.id}" data-is-dir="false" style="padding-left: 24px;">
         <span class="file-browser-spacer"></span>
@@ -354,15 +354,21 @@ const FileBrowser = {
     list.querySelectorAll('.file-browser-item-action').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const item = btn.closest('.file-browser-item');
         const action = btn.dataset.action;
-        const fileId = item?.dataset.trashId;
+        const fileId = btn.dataset.fileId;
 
         if (action === 'restore' && fileId) {
           this.restoreSpec(fileId);
+        } else if (action === 'permanent-delete' && fileId) {
+          Files.permanentDelete(fileId);
         }
       });
     });
+
+    const emptyBtn = list.querySelector('#trash-empty-all');
+    if (emptyBtn) {
+      emptyBtn.addEventListener('click', () => Files.emptyTrash());
+    }
   },
 
   findEntry(entries, path) {

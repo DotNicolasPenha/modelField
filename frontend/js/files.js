@@ -53,7 +53,8 @@ const Files = {
       name: finalName,
       content: Templates[template] || '',
       created: new Date().toISOString(),
-      modified: new Date().toISOString()
+      modified: new Date().toISOString(),
+      trashed: false
     };
 
     App.state.files.push(file);
@@ -69,13 +70,15 @@ const Files = {
     Modals.close('modal-new-file');
 
     this.openFile(file.id);
+    FileExplorer.selectSpec(file.id);
+    FileBrowser.render();
     App.updateCounts();
     Notifications.show(`File "${finalName}.md" created`);
   },
 
   openFile(fileId) {
-    const file = App.state.files.find(f => f.id === fileId);
-    if (!file) return;
+    const file = App.state.files.find(f => f.id === fileId) || App.state.diskCache[fileId];
+    if (!file || file.trashed) return;
 
     if (!App.state.openFiles.includes(fileId)) {
       App.state.openFiles.push(fileId);
@@ -134,7 +137,8 @@ const Files = {
       name: `${file.name}-copy`,
       content: file.content,
       created: new Date().toISOString(),
-      modified: new Date().toISOString()
+      modified: new Date().toISOString(),
+      trashed: false
     };
 
     App.state.files.push(newFile);
@@ -148,11 +152,51 @@ const Files = {
     const file = App.state.files.find(f => f.id === fileId);
     if (!file) return;
 
+    file.trashed = true;
+    file.trashedAt = new Date().toISOString();
+    this.closeFile(fileId, true);
+    FileExplorer.deselectSpec(fileId);
+    App.saveState();
+    FileBrowser.render();
+    App.updateCounts();
+    Notifications.show(`"${file.name}.md" moved to trash`);
+  },
+
+  restoreFile(fileId) {
+    const file = App.state.files.find(f => f.id === fileId);
+    if (!file) return;
+
+    file.trashed = false;
+    file.trashedAt = null;
+    App.saveState();
+    FileBrowser.render();
+    App.updateCounts();
+    Notifications.show(`"${file.name}.md" restored`);
+  },
+
+  permanentDelete(fileId) {
+    const file = App.state.files.find(f => f.id === fileId);
+    if (!file) return;
+
     App.state.files = App.state.files.filter(f => f.id !== fileId);
     this.closeFile(fileId, true);
     App.saveState();
+    FileBrowser.render();
     App.updateCounts();
-    Notifications.show(`File "${file.name}.md" deleted`);
+    Notifications.show(`"${file.name}.md" deleted permanently`);
+  },
+
+  emptyTrash() {
+    const trashed = App.getTrashedFiles();
+    if (trashed.length === 0) return;
+
+    const ids = trashed.map(f => f.id);
+    App.state.files = App.state.files.filter(f => !f.trashed);
+    ids.forEach(id => this.closeFile(id, false));
+    App.saveState();
+    FileBrowser.render();
+    App.updateCounts();
+    Notifications.show(`${ids.length} file(s) deleted permanently`);
   },
 
   renderTabs() {
@@ -162,14 +206,16 @@ const Files = {
     tabsEl.innerHTML = '';
 
     App.state.openFiles.forEach(fileId => {
-      const file = App.state.files.find(f => f.id === fileId);
-      if (!file) return;
+      const file = App.state.files.find(f => f.id === fileId) || App.state.diskCache[fileId];
+      if (!file || file.trashed) return;
+
+      const displayName = file.isDiskFile ? file.name : file.name + '.md';
 
       const tab = document.createElement('div');
       tab.className = `tab ${fileId === App.state.activeFile ? 'active' : ''}`;
       tab.dataset.fileId = fileId;
       tab.innerHTML = `
-        <span class="tab-name">${file.name}.md</span>
+        <span class="tab-name">${displayName}</span>
         <button class="tab-close">
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>

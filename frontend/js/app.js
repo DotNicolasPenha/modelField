@@ -7,13 +7,18 @@ const App = {
     activeFile: null,
     apiKeys: {},
     modelAliases: [],
-    runHistory: []
+    runHistory: [],
+    dirTree: [],
+    selectedSpecs: [],
+    selectedFiles: [],
+    diskCache: {}
   },
 
   isWails: typeof window.go !== 'undefined',
 
   async init() {
     await this.loadState();
+    await this.loadDirTree();
     this.initDarkMode();
     Projects.init();
     Files.init();
@@ -22,7 +27,25 @@ const App = {
     Modals.init();
     Checklist.init();
     Checklist.render();
+    Search.init();
+    FileExplorer.renderContext();
+    FileBrowser.init();
+    FileBrowser.render();
     this.updateCounts();
+  },
+
+  async loadDirTree() {
+    if (this.isWails && this.state.currentProject) {
+      const project = this.getCurrentProject();
+      if (project && project.path) {
+        try {
+          this.state.dirTree = await window.go.main.App.ReadProjectDir(project.path) || [];
+        } catch (e) {
+          console.warn('Failed to load dir tree:', e);
+          this.state.dirTree = [];
+        }
+      }
+    }
   },
 
   _saveLocal() {
@@ -33,7 +56,9 @@ const App = {
         files: this.state.files,
         apiKeys: this.state.apiKeys,
         modelAliases: this.state.modelAliases,
-        runHistory: this.state.runHistory
+        runHistory: this.state.runHistory,
+        selectedSpecs: this.state.selectedSpecs,
+        selectedFiles: this.state.selectedFiles
       }));
     } catch (e) {
       console.warn('Failed to save state:', e);
@@ -64,6 +89,8 @@ const App = {
           this.state.apiKeys = parsed.apiKeys || {};
           this.state.modelAliases = parsed.modelAliases || [];
           this.state.runHistory = parsed.runHistory || [];
+          this.state.selectedSpecs = parsed.selectedSpecs || [];
+          this.state.selectedFiles = parsed.selectedFiles || [];
         }
       } catch (e) {
         console.warn('Failed to load state:', e);
@@ -86,9 +113,7 @@ const App = {
   async saveProjects() {
     if (this.isWails) {
       try {
-        for (const p of this.state.projects) {
-          await window.go.main.App.SaveProject(p);
-        }
+        await window.go.main.App.SaveProjects(this.state.projects);
       } catch (e) {
         console.warn('Failed to save projects to Go:', e);
       }
@@ -169,19 +194,16 @@ const App = {
   },
 
   updateCounts() {
-    const filesCount = document.getElementById('files-count');
-    const runningCount = document.getElementById('running-count');
-    const finishedCount = document.getElementById('finished-count');
-
-    const projectFiles = this.getProjectFiles();
-    if (filesCount) filesCount.textContent = projectFiles.length;
-    if (runningCount) runningCount.textContent = Models.running.filter(r => r.status === 'running').length;
-    if (finishedCount) finishedCount.textContent = Models.running.filter(r => r.status === 'finished').length;
   },
 
   getProjectFiles() {
     if (!this.state.currentProject) return [];
-    return this.state.files.filter(f => f.projectId === this.state.currentProject);
+    return this.state.files.filter(f => f.projectId === this.state.currentProject && !f.trashed);
+  },
+
+  getTrashedFiles() {
+    if (!this.state.currentProject) return [];
+    return this.state.files.filter(f => f.projectId === this.state.currentProject && f.trashed);
   },
 
   getCurrentProject() {

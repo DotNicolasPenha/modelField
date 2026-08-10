@@ -168,6 +168,40 @@ const Modals = {
     if (templateSelect) {
       CustomSelect.init(templateSelect);
     }
+
+    document.getElementById('btn-clear-context')?.addEventListener('click', () => {
+      FileExplorer.clearAll();
+    });
+  },
+
+  showTaskSelect() {
+    const project = App.getCurrentProject();
+    const list = document.getElementById('task-select-list');
+    if (!list) return;
+
+    const tasks = project?.checklist || [];
+    if (tasks.length === 0) {
+      list.innerHTML = '<div class="checklist-empty">No tasks yet</div>';
+    } else {
+      list.innerHTML = tasks.map(t => `
+        <div class="task-select-item" data-task-id="${t.id}">
+          <span class="task-select-text">${t.text}</span>
+          ${t.description ? `<span class="task-select-desc">${t.description.substring(0, 60)}${t.description.length > 60 ? '...' : ''}</span>` : ''}
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.task-select-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const task = tasks.find(t => t.id === el.dataset.taskId);
+          if (task) {
+            Checklist.useAsPrompt(task);
+            this.close('modal-task-select');
+          }
+        });
+      });
+    }
+
+    this.open('modal-task-select');
   },
 
   open(modalId) {

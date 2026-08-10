@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -18,12 +20,13 @@ type APIKeys struct {
 }
 
 type File struct {
-	ID        string `json:"id"`
-	ProjectID string `json:"projectId"`
-	Name      string `json:"name"`
-	Content   string `json:"content"`
-	Created   string `json:"created"`
-	Modified  string `json:"modified"`
+	ID        string   `json:"id"`
+	ProjectID string   `json:"projectId"`
+	Name      string   `json:"name"`
+	Content   string   `json:"content"`
+	Created   string   `json:"created"`
+	Modified  string   `json:"modified"`
+	RefPaths  []string `json:"refPaths,omitempty"`
 }
 
 type ModelAlias struct {
@@ -32,20 +35,23 @@ type ModelAlias struct {
 }
 
 type RunRecord struct {
-	ID           string  `json:"id"`
-	ModelID      string  `json:"modelId"`
-	ModelName    string  `json:"modelName"`
-	Alias        string  `json:"alias"`
-	SpecName     string  `json:"specName"`
-	Status       string  `json:"status"`
-	Started      string  `json:"started"`
-	Finished     string  `json:"finished"`
-	Result       string  `json:"result"`
-	InputTokens  int     `json:"inputTokens"`
-	OutputTokens int     `json:"outputTokens"`
-	Duration     float64 `json:"duration"`
-	Cost         float64 `json:"cost"`
-	ResultSize   int     `json:"resultSize"`
+	ID             string   `json:"id"`
+	ModelID        string   `json:"modelId"`
+	ModelName      string   `json:"modelName"`
+	Alias          string   `json:"alias"`
+	SpecName      string   `json:"specName"`
+	SpecNames      []string `json:"specNames"`
+	FilePaths      []string `json:"filePaths"`
+	Prompt         string   `json:"prompt"`
+	Status         string   `json:"status"`
+	Started        string   `json:"started"`
+	Finished       string   `json:"finished"`
+	Result         string   `json:"result"`
+	InputTokens    int      `json:"inputTokens"`
+	OutputTokens   int      `json:"outputTokens"`
+	Duration       float64  `json:"duration"`
+	Cost           float64  `json:"cost"`
+	ResultSize     int      `json:"resultSize"`
 }
 
 type CheckItem struct {
@@ -61,6 +67,24 @@ type Project struct {
 	Path      string      `json:"path"`
 	Created   string      `json:"created"`
 	Checklist []CheckItem `json:"checklist"`
+}
+
+type DirEntry struct {
+	Name     string     `json:"name"`
+	Path     string     `json:"path"`
+	IsDir    bool       `json:"isDir"`
+	Size     int64      `json:"size"`
+	Modified string     `json:"modified"`
+	Children []DirEntry `json:"children,omitempty"`
+}
+
+type FileInfo struct {
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	IsDir    bool   `json:"isDir"`
+	Size     int64  `json:"size"`
+	Modified string `json:"modified"`
+	Items    int    `json:"items"`
 }
 
 type App struct {
@@ -148,6 +172,11 @@ func (a *App) SaveModelAliases(aliases []ModelAlias) error {
 func (a *App) GetRunHistory() []RunRecord {
 	var records []RunRecord
 	a.readJSON("run_history.json", &records)
+	for i := range records {
+		if len(records[i].SpecNames) == 0 && records[i].SpecName != "" {
+			records[i].SpecNames = []string{records[i].SpecName}
+		}
+	}
 	return records
 }
 
@@ -186,6 +215,10 @@ func (a *App) SaveProject(project Project) error {
 	return a.writeJSON("projects.json", projects)
 }
 
+func (a *App) SaveProjects(projects []Project) error {
+	return a.writeJSON("projects.json", projects)
+}
+
 func (a *App) DeleteProject(id string) error {
 	var projects []Project
 	a.readJSON("projects.json", &projects)
@@ -210,4 +243,82 @@ func (a *App) SelectDirectory() string {
 
 func (a *App) ShowNotification(title string, message string) {
 	fmt.Printf("[%s] %s\n", title, message)
+}
+
+var skipDirs = map[string]bool{
+	".git": true, "node_modules": true, ".DS_Store": true,
+	".vscode": true, ".idea": true, "__pycache__": true,
+	".pytest_cache": true, "vendor": true, ".gradle": true,
+}
+
+func (a *App) ReadProjectDir(dirPath string) []DirEntry {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return nil
+	}
+	var result []DirEntry
+	for _, entry := range entries {
+		name := entry.Name()
+		if skipDirs[name] || strings.HasPrefix(name, ".") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		e := DirEntry{
+			Name:     name,
+			Path:     filepath.Join(dirPath, name),
+			IsDir:    entry.IsDir(),
+			Size:     info.Size(),
+			Modified: info.ModTime().Format("2006-01-02T15:04:05Z"),
+		}
+		if entry.IsDir() {
+			e.Children = a.ReadProjectDir(e.Path)
+		}
+		result = append(result, e)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].IsDir != result[j].IsDir {
+			return result[i].IsDir
+		}
+		return result[i].Name < result[j].Name
+	})
+	return result
+}
+
+func (a *App) ReadFileContent(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func (a *App) GetFileInfo(path string) FileInfo {
+	info, err := os.Stat(path)
+	if err != nil {
+		return FileInfo{}
+	}
+	fi := FileInfo{
+		Name:     info.Name(),
+		Path:     path,
+		IsDir:    info.IsDir(),
+		Size:     info.Size(),
+		Modified: info.ModTime().Format("2006-01-02T15:04:05Z"),
+	}
+	if info.IsDir() {
+		entries, err := os.ReadDir(path)
+		if err == nil {
+			count := 0
+			for _, e := range entries {
+				name := e.Name()
+				if !skipDirs[name] && !strings.HasPrefix(name, ".") {
+					count++
+				}
+			}
+			fi.Items = count
+		}
+	}
+	return fi
 }
