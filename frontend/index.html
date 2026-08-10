@@ -31,18 +31,12 @@
         </button>
       </div>
       <div class="topbar-center">
-        <button class="topbar-btn topbar-label" id="btn-files-count" title="Files">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <span id="files-count">0</span>
-        </button>
-        <button class="topbar-btn topbar-label" id="btn-running-count" title="Running">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span id="running-count">0</span>
-        </button>
-        <button class="topbar-btn topbar-label" id="btn-finished-count" title="Finished">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          <span id="finished-count">0</span>
-        </button>
+        <div class="search-wrapper">
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" class="search-input" id="search-input" placeholder="Search everything..." autocomplete="off">
+          <kbd class="search-kbd">⌘K</kbd>
+          <div class="search-results" id="search-results"></div>
+        </div>
       </div>
       <div class="topbar-right">
         <button class="topbar-btn" id="btn-history" title="Run History">
@@ -67,6 +61,36 @@
       </section>
 
       <section class="sidebar-panel">
+        <section class="context-panel">
+          <div class="context-header">
+            <span>Context</span>
+            <span class="context-count" id="context-count"></span>
+            <button class="btn btn-primary context-run-btn" id="btn-context-run" title="Run on selected models" style="height: 24px; font-size: 11px; padding: 0 8px; gap: 4px;">
+              Run on
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <button class="context-clear" id="btn-clear-context" title="Clear all">clear</button>
+          </div>
+          <div class="context-list" id="context-items">
+            <div class="checklist-empty">No context selected</div>
+          </div>
+        </section>
+
+        <section class="file-browser-panel">
+          <div class="file-browser-header">
+            <span>Files</span>
+            <div class="file-browser-tabs">
+              <button class="file-browser-tab active" id="file-browser-filter-all">All</button>
+              <button class="file-browser-tab" id="file-browser-filter-md">.md</button>
+              <button class="file-browser-tab" id="file-browser-filter-specs">Spec</button>
+              <button class="file-browser-tab" id="file-browser-filter-trash">Trash</button>
+            </div>
+          </div>
+          <div class="file-browser-list" id="file-browser-list">
+            <div class="checklist-empty">No project files</div>
+          </div>
+        </section>
+
         <section class="models-panel">
           <div class="models-header">
             <span>Models</span>
@@ -204,7 +228,7 @@
   </div>
 
   <div class="modal-overlay" id="modal-run-config">
-    <div class="modal modal-sm">
+    <div class="modal modal-md">
       <div class="modal-header">
         <h3>Configure Run</h3>
         <button class="topbar-btn modal-close" data-modal="modal-run-config">
@@ -217,13 +241,14 @@
           <span class="run-config-model-provider" id="config-model-provider"></span>
         </div>
         <div class="form-group">
-          <label class="form-label">Nickname (optional)</label>
-          <input type="text" class="input" id="input-run-alias" placeholder="e.g. My GPT">
+          <label class="form-label">Context</label>
+          <div class="run-context-list" id="run-context-list"></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Spec</label>
-          <span class="run-config-spec" id="config-spec-name"></span>
+          <label class="form-label">Prompt</label>
+          <textarea class="input textarea" id="input-run-prompt" placeholder="Write your prompt here..." rows="4"></textarea>
         </div>
+        <div class="run-validation-error" id="run-validation-error"></div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary modal-close" data-modal="modal-run-config">Cancel</button>
@@ -344,6 +369,94 @@
 
   <div class="toast-container" id="toast-container"></div>
 
+  <div class="modal-overlay" id="modal-file-preview">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 id="file-preview-name">File</h3>
+        <button class="topbar-btn modal-close" data-modal="modal-file-preview">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="file-preview-meta">
+          <span id="file-preview-path" class="file-preview-path"></span>
+          <span id="file-preview-size" class="file-preview-stat"></span>
+          <span id="file-preview-date" class="file-preview-stat"></span>
+        </div>
+        <pre class="file-preview-content" id="file-preview-content"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-file-preview-context">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add to Context
+        </button>
+        <button class="btn btn-primary" id="btn-file-preview-editor">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Open in Editor
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-folder-preview">
+    <div class="modal modal-md">
+      <div class="modal-header">
+        <h3 id="folder-preview-name">Folder</h3>
+        <button class="topbar-btn modal-close" data-modal="modal-folder-preview">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="file-preview-meta">
+          <span id="folder-preview-path" class="file-preview-path"></span>
+          <span id="folder-preview-items" class="file-preview-stat"></span>
+          <span id="folder-preview-date" class="file-preview-stat"></span>
+        </div>
+        <div class="folder-preview-list" id="folder-preview-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-folder-preview-context">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Folder to Context
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-model-info">
+    <div class="modal modal-md">
+      <div class="modal-header">
+        <h3 id="model-info-name">Model</h3>
+        <button class="topbar-btn modal-close" data-modal="modal-model-info">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="model-info-meta">
+          <div class="model-info-row"><span class="model-info-label">Provider</span><span id="model-info-provider"></span></div>
+          <div class="model-info-row"><span class="model-info-label">ID</span><span id="model-info-id"></span></div>
+          <div class="model-info-row"><span class="model-info-label">Description</span><span id="model-info-desc"></span></div>
+        </div>
+        <h4 class="section-title" style="margin-top: var(--space-4);">Recent Runs</h4>
+        <div class="model-info-history" id="model-info-history"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-task-select">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3>Select Task</h3>
+        <button class="topbar-btn modal-close" data-modal="modal-task-select">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="task-select-list" id="task-select-list"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="js/app.js"></script>
   <script src="js/templates.js"></script>
   <script src="js/projects.js"></script>
@@ -353,5 +466,8 @@
   <script src="js/checklist.js"></script>
   <script src="js/modals.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/file-explorer.js"></script>
+  <script src="js/file-browser.js"></script>
 </body>
 </html>
