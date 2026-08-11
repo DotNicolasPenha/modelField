@@ -8,9 +8,23 @@
   border-radius: var(--radius-md);
   font-size: var(--font-size-lg);
   font-weight: 500;
+  background: var(--surface);
+  color: var(--text-primary);
   transition: background var(--duration-normal) var(--ease),
               color var(--duration-normal) var(--ease),
-              opacity var(--duration-normal) var(--ease);
+              opacity var(--duration-normal) var(--ease),
+              transform var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
+  will-change: transform, opacity, box-shadow;
+}
+
+.btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--shadow-md);
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.96);
 }
 
 .btn-primary {
@@ -19,12 +33,8 @@
 }
 
 .btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-primary:active {
-  transform: scale(0.97);
-  transition: transform var(--duration-fast) var(--ease-spring);
+  background: rgba(245, 245, 247, 0.92);
+  color: var(--bg);
 }
 
 .btn-secondary {
@@ -33,7 +43,7 @@
 }
 
 .btn-secondary:hover {
-  opacity: 0.8;
+  background: var(--overlay-hover);
 }
 
 .input {
@@ -158,6 +168,7 @@
 
 .checklist-item:hover {
   background: var(--overlay-hover);
+  transform: translateY(-1px);
 }
 
 .checklist-item-row {
@@ -680,13 +691,25 @@ select.input {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease),
+              color var(--duration-fast) var(--ease),
+              transform var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
   user-select: none;
+  opacity: 0;
+  transform: translateY(8px) scale(0.99);
+  animation: itemPopIn var(--duration-normal) var(--ease-emphasized) both;
 }
 
 .file-browser-item:hover {
   background: var(--overlay-hover);
   color: var(--text-primary);
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: var(--shadow-sm);
+}
+
+.file-browser-item.exiting {
+  animation: itemPopOut var(--duration-fast) var(--ease-exit) forwards;
 }
 
 .file-browser-chevron {
@@ -757,6 +780,7 @@ select.input {
   color: var(--text-primary);
   background: var(--overlay-hover);
   border-color: var(--text-secondary);
+  transform: scale(1.05);
 }
 
 .file-browser-item-action-danger {
@@ -799,6 +823,37 @@ select.input {
   border-color: rgba(231, 76, 60, 0.3);
 }
 
+@keyframes itemPopIn {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.94);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes itemPopOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.92);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
 .file-browser-item-trashed:hover {
   opacity: 1;
 }
@@ -817,11 +872,23 @@ select.input {
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   color: var(--text-primary);
-  transition: background var(--duration-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease),
+              transform var(--duration-fast) var(--ease),
+              opacity var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
+  opacity: 0;
+  transform: translateY(8px) scale(0.99);
+  animation: itemPopIn var(--duration-normal) var(--ease-emphasized) both;
 }
 
 .context-item:hover {
   background: var(--overlay-hover);
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: var(--shadow-sm);
+}
+
+.context-item.exiting {
+  animation: itemPopOut var(--duration-fast) var(--ease-exit) forwards;
 }
 
 .context-item-icon {
@@ -921,8 +988,13 @@ select.input {
   cursor: default;
 }
 
+.folder-preview-item {
+  transition: background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+}
+
 .folder-preview-item:hover {
   background: var(--overlay-hover);
+  transform: translateY(-1px);
 }
 
 .model-info-meta {
@@ -961,10 +1033,12 @@ select.input {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
   border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
 }
 
 .model-info-history-item:hover {
   background: var(--overlay-hover);
+  transform: translateX(2px);
 }
 
 .model-info-history-time {

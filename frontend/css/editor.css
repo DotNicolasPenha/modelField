@@ -18,16 +18,18 @@
   border-bottom: 2px solid transparent;
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--duration-normal) var(--ease), border-bottom-color var(--duration-normal) var(--ease);
+  transition: color var(--duration-normal) var(--ease), border-bottom-color var(--duration-normal) var(--ease), transform var(--duration-fast) var(--ease);
 }
 
 .tab:hover {
   color: var(--text-primary);
+  transform: translateY(-2px) scale(1.01);
 }
 
 .tab.active {
   color: var(--text-primary);
   border-bottom-color: var(--text-primary);
+  transform: translateY(-1px) scale(1.02);
 }
 
 .tab.closing {
@@ -62,6 +64,7 @@
 .tab-close:hover {
   opacity: 1 !important;
   background: var(--overlay-hover);
+  transform: scale(1.12);
 }
 
 .tab-close svg {
@@ -237,6 +240,20 @@
   padding: var(--space-3) var(--space-4);
   cursor: default;
   gap: var(--space-3);
+  opacity: 0;
+  transform: translateY(8px) scale(0.99);
+  animation: itemPopIn var(--duration-normal) var(--ease-emphasized) both;
+  transition: transform var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
+}
+
+.model-item:hover {
+  transform: translateY(-1px) scale(1);
+  box-shadow: var(--shadow-sm);
+}
+
+.model-item.exiting {
+  animation: itemPopOut var(--duration-fast) var(--ease-exit) forwards;
 }
 
 .model-info {
@@ -545,11 +562,23 @@
   background: var(--surface);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease);
+  transition: background var(--duration-fast) var(--ease),
+              transform var(--duration-fast) var(--ease),
+              opacity var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
+  opacity: 0;
+  transform: translateY(8px) scale(0.99);
+  animation: itemPopIn var(--duration-normal) var(--ease-emphasized) both;
 }
 
 .history-item:hover {
   background: var(--overlay-hover);
+  transform: translateY(-1px) scale(1);
+  box-shadow: var(--shadow-sm);
+}
+
+.history-item.exiting {
+  animation: itemPopOut var(--duration-fast) var(--ease-exit) forwards;
 }
 
 .history-item-info {
