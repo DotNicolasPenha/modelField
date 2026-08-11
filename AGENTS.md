@@ -2,64 +2,132 @@
 
 ## Purpose
 
-ModelField is a desktop application for creating, editing and running
-AI specification files.
+ModelField is a desktop application for creating, editing and running AI specification files.
 
-This file is a compact architectural map. Use it as the first reference
-before exploring the repository. Read source files only when implementation
-details are required.
+This file is a **compact repository map for AI agents**.
+
+Use it to locate relevant code before exploring the repository.
+
+**Minimize context usage. Do not read unrelated files.**
+
+When this file conflicts with source code, **source code is authoritative**.
+
+---
 
 ## Stack
 
-- Backend: Go 1.25 + Wails v2
-- Frontend: Vanilla JS + HTML + CSS
-- Persistence: JSON files in `~/.modelfield/`
-- Build: Makefile / shell / Docker
-- No frontend framework or bundler
+* Backend: Go 1.25 + Wails v2
+* Frontend: Vanilla JS + HTML + CSS
+* Persistence: JSON in `~/.modelfield/`
+* Build: Makefile / shell / Docker
+* No frontend framework or bundler
 
-## Architecture
+---
+
+## Repository Map
 
 ```text
 Go/Wails
-  └── app.go
-       └── JSON persistence
+├── main.go
+│   └── Wails entry point
+└── app.go
+    └── backend API + JSON persistence
 
 Frontend
-  ├── app.js          → global state + initialization + persistence bridge
-  ├── editor.js       → markdown editor
-  ├── files.js        → files, tabs and file actions
-  ├── models.js       → models, runs and history
-  ├── modals.js       → modal/select system
-  ├── templates.js    → spec templates
-  ├── projects.js     → project management
-  ├── checklist.js    → project checklist
-  └── notifications.js → toast system
+├── index.html
+│   └── UI structure
+├── css/
+│   ├── tokens.css
+│   │   └── design tokens + themes
+│   ├── base.css
+│   ├── layout.css
+│   ├── components.css
+│   └── editor.css
+└── js/
+    ├── app.js
+    │   └── global state + initialization + persistence bridge
+    ├── editor.js
+    │   └── markdown editor
+    ├── files.js
+    │   └── file CRUD + tabs + file actions
+    ├── file-browser.js
+    │   └── file browsing behavior
+    ├── file-explorer.js
+    │   └── file explorer behavior
+    ├── models.js
+    │   └── models + execution + metrics + history
+    ├── projects.js
+    │   └── project management
+    ├── checklist.js
+    │   └── project checklist
+    ├── modals.js
+    │   └── modal + select primitives
+    ├── notifications.js
+    │   └── toast notifications
+    ├── search.js
+    │   └── search behavior
+    └── templates.js
+        └── static spec templates
 ```
 
-## Important Files
+---
 
-| File | Responsibility |
-|------|----------------|
-| `main.go` | Wails entry point |
-| `app.go` | Backend API + persistence |
-| `frontend/index.html` | Main UI structure |
-| `frontend/js/app.js` | Global frontend state |
-| `frontend/js/editor.js` | Markdown editor |
-| `frontend/js/files.js` | File management |
-| `frontend/js/models.js` | Models, execution and history |
-| `frontend/js/projects.js` | Projects |
-| `frontend/js/checklist.js` | Checklist |
-| `frontend/js/modals.js` | Modal/select system |
-| `frontend/js/templates.js` | Spec templates |
-| `frontend/css/tokens.css` | Design tokens |
-| `frontend/css/*.css` | UI styling |
-| `frontend/wailsjs/` | Generated Wails bindings |
+## Task Routing
 
-## Data Model
+Use this map before opening files.
 
-Backend persistence is JSON-based.
+| Task                     | Primary files                           |
+| ------------------------ | --------------------------------------- |
+| UI/design                | `frontend/css/*`, `frontend/index.html` |
+| Design tokens/themes     | `frontend/css/tokens.css`               |
+| Layout                   | `frontend/css/layout.css`               |
+| Components               | `frontend/css/components.css`           |
+| Editor styling           | `frontend/css/editor.css`               |
+| Global frontend behavior | `frontend/js/app.js`                    |
+| Markdown editor          | `frontend/js/editor.js`                 |
+| Files                    | `frontend/js/files.js`                  |
+| File browser             | `frontend/js/file-browser.js`           |
+| File explorer            | `frontend/js/file-explorer.js`          |
+| Search                   | `frontend/js/search.js`                 |
+| Models/runs              | `frontend/js/models.js`                 |
+| Projects                 | `frontend/js/projects.js`               |
+| Checklist                | `frontend/js/checklist.js`              |
+| Modals/selects           | `frontend/js/modals.js`                 |
+| Notifications            | `frontend/js/notifications.js`          |
+| Templates                | `frontend/js/templates.js`              |
+| Backend/API              | `app.go`                                |
+| Wails bootstrap          | `main.go`                               |
+| Build/release            | `Makefile`, `build.sh`, `Dockerfile`    |
 
+Only inspect secondary files when the primary module depends on them.
+
+---
+
+## Backend
+
+`app.go` owns:
+
+* API key persistence
+* file persistence
+* project persistence
+* model aliases
+* run history
+* native dialogs/notifications
+* Wails methods exposed to frontend
+
+Main entities:
+
+```text
+APIKeys
+File
+Project
+RunRecord
+ModelAlias
 ```
+
+Persistence:
+
+```text
 ~/.modelfield/
 ├── api_keys.json
 ├── files.json
@@ -68,81 +136,109 @@ Backend persistence is JSON-based.
 └── run_history.json
 ```
 
-Main entities:
+`app.go` is the authoritative source for backend data structures and Wails APIs.
 
-- `APIKeys`
-- `File`
-- `Project`
-- `RunRecord`
-- `ModelAlias`
+---
 
-See `app.go` for the authoritative Go definitions.
+## Frontend State Flow
 
-## State Flow
-
-```
+```text
 App.init()
-   ↓
+    ↓
 Load persisted state
-   ↓
+    ↓
 App.state
-   ↓
-Frontend modules
-   ↓
+    ↓
+Feature modules
+    ↓
 User interaction
-   ↓
+    ↓
 Wails API
-   ↓
+    ↓
 JSON persistence
 ```
 
-When running outside Wails, frontend persistence falls back to `localStorage`.
+When Wails is unavailable, frontend persistence falls back to `localStorage`.
+
+---
+
+## Module Boundaries
+
+* `app.js` → global state, initialization, persistence bridge
+* `editor.js` → editor behavior
+* `files.js` → file behavior
+* `file-browser.js` → browser behavior
+* `file-explorer.js` → explorer behavior
+* `search.js` → search behavior
+* `projects.js` → project behavior
+* `models.js` → model/run behavior
+* `checklist.js` → checklist behavior
+* `modals.js` → reusable modal/select primitives
+* `notifications.js` → notifications
+* `templates.js` → static templates
+
+Keep feature-specific logic inside its responsible module.
+
+Do not move unrelated logic into `app.js`.
+
+---
 
 ## Architectural Rules
 
-1. Keep the frontend framework-free.
-2. Keep persistence logic in Go/Wails.
-3. Do not duplicate backend persistence logic in individual JS modules.
-4. Reuse existing CSS tokens before creating new visual values.
-5. Do not manually edit generated files under `frontend/wailsjs/`.
-6. Keep module responsibilities separated.
-7. Prefer modifying an existing module over creating another module for related behavior.
-8. Do not introduce dependencies without a clear architectural reason.
-9. Preserve existing Wails/frontend boundaries.
-10. When behavior already exists, extend it instead of duplicating it.
+1. Keep frontend framework-free.
+2. Keep persistence in Go/Wails.
+3. Do not duplicate persistence logic across JS modules.
+4. Reuse existing CSS tokens.
+5. Do not hardcode design values when a token exists.
+6. Do not manually edit `frontend/wailsjs/`.
+7. Preserve Go/Wails ↔ frontend boundaries.
+8. Prefer extending existing modules over creating duplicates.
+9. Do not add dependencies without clear necessity.
+10. Avoid unrelated refactors.
+11. Keep runtime behavior unchanged unless the task requires it.
 
-## Frontend Module Boundaries
-
-- `app.js` → state, initialization and persistence bridge
-- `editor.js` → editor behavior only
-- `files.js` → file behavior only
-- `projects.js` → project behavior only
-- `models.js` → model/run behavior only
-- `checklist.js` → checklist behavior only
-- `modals.js` → reusable modal/select primitives
-- `notifications.js` → notifications
-- `templates.js` → static spec templates
-
-Avoid putting feature-specific logic into `app.js` unless it is truly global.
+---
 
 ## Styling
 
-Design tokens live in:
+Design tokens:
 
-```
+```text
 frontend/css/tokens.css
 ```
 
-Use existing variables for:
+Tokens control:
 
-- colors
-- typography
-- spacing
-- radius
-- transitions
-- themes
+* colors
+* typography
+* spacing
+* radius
+* borders
+* shadows
+* transitions
+* themes
 
-Avoid hardcoded design values when an equivalent token exists.
+Always inspect `tokens.css` before modifying visual behavior.
+
+Prefer semantic tokens over component-specific hardcoded values.
+
+---
+
+## Generated / Build Files
+
+Do not inspect or modify unless the task requires them:
+
+```text
+frontend/wailsjs/
+build/
+go.sum
+```
+
+`frontend/wailsjs/` contains generated Wails bindings.
+
+`build/` contains compiled binaries.
+
+---
 
 ## Build
 
@@ -153,29 +249,46 @@ make build-windows
 make release VERSION=x.y.z
 ```
 
-Check the `Makefile` for authoritative build behavior.
+`Makefile` is authoritative for build behavior.
 
-## Development Guidance
+---
+
+## Agent Workflow
 
 Before changing code:
 
-1. Identify the responsible module from the map above.
-2. Read only that module and its direct dependencies.
-3. Check `app.go` if the change crosses the Wails boundary.
-4. Check `tokens.css` if changing UI.
-5. Avoid broad repository exploration unless necessary.
+```text
+1. Identify task category.
+2. Use Task Routing.
+3. Read the primary file.
+4. Read only direct dependencies if required.
+5. Inspect backend only if crossing Wails boundary.
+6. Inspect tokens.css for UI changes.
+```
 
 After changing code:
 
-- preserve existing architecture;
-- verify affected flows;
-- avoid unrelated refactors;
-- update this file only when architecture or module responsibilities change.
+```text
+1. Verify affected behavior.
+2. Avoid unrelated changes.
+3. Check architecture boundaries.
+4. Update AGENTS.md only if architecture changed.
+```
+
+---
 
 ## Source of Truth
 
-`AGENTS.md` is a navigation and architecture summary, not detailed documentation.
+`AGENTS.md` describes **architecture and navigation**, not implementation details.
 
-When this file conflicts with source code, source code is authoritative.
+Do not expand this file with:
 
-Keep this file short. Update it when the architecture changes, not when implementation details change.
+* function documentation
+* implementation details
+* complete API references
+* CSS explanations
+* duplicated source code
+* temporary behavior
+* historical information
+
+Keep it **short, stable and token-efficient**.
