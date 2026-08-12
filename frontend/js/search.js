@@ -88,9 +88,10 @@ const Search = {
   },
 
   searchModels(q) {
-    const data = Models.data || {};
-    Object.values(data).forEach(group => {
-      group.forEach(m => {
+    const allProviders = ProviderBase.getAll();
+    Object.entries(allProviders).forEach(([name, provider]) => {
+      const models = ProviderBase.getModels(name);
+      models.forEach(m => {
         if (m.name.toLowerCase().includes(q) || m.provider.toLowerCase().includes(q)) {
           this.results.push({ type: 'model', name: m.name, item: m });
         }
@@ -213,8 +214,8 @@ const Search = {
           this.addToContext(result);
         } else if (action === 'select-model') {
           if (result.item) {
-            Models.selectModel(result.item);
-            Notifications.show(`${result.item.name} selecionado`);
+            Models.startRun(result.item);
+            Notifications.show(`${result.item.name} selected`);
           }
         } else if (action === 're-run') {
           this.openItem(result);

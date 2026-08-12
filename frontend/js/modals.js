@@ -159,6 +159,12 @@ const Modals = {
       this.sendChatMessage();
     });
 
+    document.getElementById('btn-stop-chat')?.addEventListener('click', () => {
+      if (Models._currentAbortController) {
+        Models._currentAbortController.abort();
+      }
+    });
+
     document.getElementById('chat-input')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') this.sendChatMessage();
     });
@@ -171,6 +177,20 @@ const Modals = {
 
     document.getElementById('btn-clear-context')?.addEventListener('click', () => {
       FileExplorer.clearAll();
+    });
+
+    document.querySelectorAll('.btn-test-key').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const provider = btn.dataset.provider;
+        if (provider) this.testKey(provider);
+      });
+    });
+
+    document.querySelectorAll('.btn-clear-key').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const provider = btn.dataset.provider;
+        if (provider) this.clearKey(provider);
+      });
     });
   },
 
@@ -224,6 +244,15 @@ const Modals = {
     document.getElementById('api-anthropic').value = keys.anthropic || '';
     document.getElementById('api-google').value = keys.google || '';
     document.getElementById('api-openrouter').value = keys.openrouter || '';
+
+    ['openai', 'anthropic', 'google', 'openrouter'].forEach(p => {
+      const statusEl = document.getElementById(`status-${p}`);
+      if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.className = 'key-status';
+      }
+    });
+
     this.open('modal-settings');
   },
 
@@ -235,11 +264,74 @@ const Modals = {
       openrouter: document.getElementById('api-openrouter')?.value.trim() || ''
     };
     await App.saveAPIKeys();
+
+    const changedProviders = [];
+    for (const [name, provider] of Object.entries(ProviderBase.getAll())) {
+      const newKey = App.state.apiKeys[provider.apiKeyField];
+      const statusEl = document.getElementById(`status-${provider.apiKeyField}`);
+      if (newKey && statusEl && !statusEl.classList.contains('valid')) {
+        changedProviders.push(name);
+      }
+    }
+
+    if (changedProviders.length > 0) {
+      Notifications.show('Saving and validating keys...');
+      for (const name of changedProviders) {
+        await this.testKey(name);
+      }
+    }
+
     this.close('modal-settings');
     Notifications.show('Settings saved');
   },
 
-  sendChatMessage() {
+  async testKey(providerName) {
+    const provider = ProviderBase.get(providerName);
+    if (!provider) return;
+
+    const inputEl = document.getElementById(`api-${provider.apiKeyField}`);
+    const statusEl = document.getElementById(`status-${provider.apiKeyField}`);
+    if (!inputEl || !statusEl) return;
+
+    const apiKey = inputEl.value.trim();
+    if (!apiKey) {
+      statusEl.textContent = '';
+      statusEl.className = 'key-status';
+      return;
+    }
+
+    statusEl.textContent = 'Testing...';
+    statusEl.className = 'key-status testing';
+
+    const result = await API.validateKey(providerName);
+
+    if (result.valid) {
+      statusEl.textContent = 'Valid';
+      statusEl.className = 'key-status valid';
+    } else {
+      statusEl.textContent = 'Invalid';
+      statusEl.className = 'key-status invalid';
+    }
+  },
+
+  clearKey(providerName) {
+    const provider = ProviderBase.get(providerName);
+    if (!provider) return;
+
+    const inputEl = document.getElementById(`api-${provider.apiKeyField}`);
+    const statusEl = document.getElementById(`status-${provider.apiKeyField}`);
+
+    if (inputEl) {
+      inputEl.value = '';
+      inputEl.focus();
+    }
+    if (statusEl) {
+      statusEl.textContent = '';
+      statusEl.className = 'key-status';
+    }
+  },
+
+  async sendChatMessage() {
     const input = document.getElementById('chat-input');
     const messages = document.getElementById('chat-messages');
 
@@ -250,23 +342,78 @@ const Modals = {
 
     const userMsg = document.createElement('div');
     userMsg.className = 'chat-msg';
-    userMsg.innerHTML = `<strong>You</strong>${text}`;
+    userMsg.innerHTML = `<div class="chat-msg-author">You</div>${ProviderBase.escapeHtml(text)}`;
     messages.appendChild(userMsg);
 
     input.value = '';
+    input.disabled = true;
+    input.classList.add('chat-input-disabled');
 
     const currentRun = Models.currentRun;
     const aiName = currentRun ? Models.getDisplayName(currentRun.model) : 'AI';
 
-    setTimeout(() => {
-      const aiMsg = document.createElement('div');
-      aiMsg.className = 'chat-msg';
-      aiMsg.innerHTML = `<strong>${aiName}</strong>I understand your question. This is a mock response since no real API is connected. In the full version, this would be processed by the selected model.`;
-      messages.appendChild(aiMsg);
-      messages.scrollTop = messages.scrollHeight;
-    }, 500);
+    Models._showChatLoading(messages, aiName);
+    const btnStop = document.getElementById('btn-stop-chat');
+    if (btnStop) btnStop.style.display = '';
+
+    const abortController = new AbortController();
+    Models._currentAbortController = abortController;
 
     messages.scrollTop = messages.scrollHeight;
+
+    try {
+      Models.chatHistory.push({ role: 'user', content: text });
+
+      const result = await API.sendChat(currentRun.model, Models.chatHistory, text, currentRun.context || [], (toolEvent) => {
+        Models._renderToolEvent(messages, toolEvent);
+      }, abortController.signal);
+
+      Models._removeChatLoading();
+      Models._currentAbortController = null;
+      if (btnStop) btnStop.style.display = 'none';
+
+      Models.chatHistory.push({ role: 'assistant', content: result.content });
+
+      const aiMsg = document.createElement('div');
+      aiMsg.className = 'chat-msg';
+      let metricsHtml = '';
+      if (result.metrics) {
+        metricsHtml = `<div class="chat-msg-metrics">
+          <span>${Models.formatTokens(result.metrics.inputTokens)} in · ${Models.formatTokens(result.metrics.outputTokens)} out</span>
+          <span>·</span>
+          <span>${Models.formatDuration(result.metrics.duration)}</span>
+          <span>·</span>
+          <span>${Models.formatCost(result.metrics.cost)}</span>
+        </div>`;
+      }
+      aiMsg.innerHTML = `<div class="chat-msg-author">${aiName}</div>${ProviderBase.formatMarkdown(result.content)}${metricsHtml}`;
+      messages.appendChild(aiMsg);
+
+      messages.scrollTop = messages.scrollHeight;
+      Models._updateContextBar();
+    } catch (error) {
+      Models._removeChatLoading();
+      Models._currentAbortController = null;
+      if (btnStop) btnStop.style.display = 'none';
+
+      if (error.name === 'AbortError') {
+        const cancelMsg = document.createElement('div');
+        cancelMsg.className = 'chat-msg chat-msg-error';
+        cancelMsg.innerHTML = `<div class="chat-msg-author">Stopped</div>Request cancelled by user.`;
+        messages.appendChild(cancelMsg);
+      } else {
+        const errMsg = document.createElement('div');
+        errMsg.className = 'chat-msg chat-msg-error';
+        errMsg.innerHTML = `<div class="chat-msg-author">Error</div>${ProviderBase.escapeHtml(error.message)}`;
+        messages.appendChild(errMsg);
+      }
+
+      messages.scrollTop = messages.scrollHeight;
+    } finally {
+      input.disabled = false;
+      input.classList.remove('chat-input-disabled');
+      input.focus();
+    }
   },
 
   confirm(message) {

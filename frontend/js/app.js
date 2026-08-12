@@ -8,6 +8,7 @@ const App = {
     apiKeys: {},
     modelAliases: [],
     runHistory: [],
+    recentModels: [],
     dirTree: [],
     selectedSpecs: [],
     selectedFiles: [],
@@ -57,6 +58,7 @@ const App = {
         apiKeys: this.state.apiKeys,
         modelAliases: this.state.modelAliases,
         runHistory: this.state.runHistory,
+        recentModels: this.state.recentModels,
         selectedSpecs: this.state.selectedSpecs,
         selectedFiles: this.state.selectedFiles
       }));
@@ -66,6 +68,11 @@ const App = {
   },
 
   async loadState() {
+    this.state.recentModels = JSON.parse(localStorage.getItem('modelfield-recentModels') || '[]');
+    const savedProject = localStorage.getItem('modelfield-currentProject');
+    if (savedProject) this.state.currentProject = savedProject;
+    this.loadContext();
+
     if (this.isWails) {
       try {
         this.state.projects = await window.go.main.App.GetProjects() || [];
@@ -73,8 +80,6 @@ const App = {
         this.state.files = await window.go.main.App.GetFiles() || [];
         this.state.modelAliases = await window.go.main.App.GetModelAliases() || [];
         this.state.runHistory = await window.go.main.App.GetRunHistory() || [];
-        const saved = localStorage.getItem('modelfield-currentProject');
-        if (saved) this.state.currentProject = saved;
       } catch (e) {
         console.warn('Failed to load state from Go:', e);
       }
@@ -89,6 +94,7 @@ const App = {
           this.state.apiKeys = parsed.apiKeys || {};
           this.state.modelAliases = parsed.modelAliases || [];
           this.state.runHistory = parsed.runHistory || [];
+          this.state.recentModels = parsed.recentModels || [];
           this.state.selectedSpecs = parsed.selectedSpecs || [];
           this.state.selectedFiles = parsed.selectedFiles || [];
         }
@@ -130,6 +136,38 @@ const App = {
     }
   },
 
+  saveContext() {
+    if (!this.state.currentProject) return;
+    const key = `modelfield-context-${this.state.currentProject}`;
+    localStorage.setItem(key, JSON.stringify({
+      selectedSpecs: this.state.selectedSpecs || [],
+      selectedFiles: this.state.selectedFiles || []
+    }));
+  },
+
+  loadContext() {
+    if (!this.state.currentProject) {
+      this.state.selectedSpecs = [];
+      this.state.selectedFiles = [];
+      return;
+    }
+    const key = `modelfield-context-${this.state.currentProject}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        this.state.selectedSpecs = parsed.selectedSpecs || [];
+        this.state.selectedFiles = parsed.selectedFiles || [];
+      } catch (e) {
+        this.state.selectedSpecs = [];
+        this.state.selectedFiles = [];
+      }
+    } else {
+      this.state.selectedSpecs = [];
+      this.state.selectedFiles = [];
+    }
+  },
+
   async saveAPIKeys() {
     if (this.isWails) {
       try {
@@ -164,6 +202,23 @@ const App = {
     } else {
       this._saveLocal();
     }
+  },
+
+  saveRecentModels() {
+    try {
+      localStorage.setItem('modelfield-recentModels', JSON.stringify(this.state.recentModels));
+    } catch (e) {
+      console.warn('Failed to save recent models:', e);
+    }
+  },
+
+  addRecentModel(model) {
+    this.state.recentModels = this.state.recentModels.filter(m => m.id !== model.id);
+    this.state.recentModels.unshift({ id: model.id, name: model.name, provider: model.provider });
+    if (this.state.recentModels.length > 5) {
+      this.state.recentModels = this.state.recentModels.slice(0, 5);
+    }
+    this.saveRecentModels();
   },
 
   initDarkMode() {

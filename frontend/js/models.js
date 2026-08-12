@@ -1,28 +1,8 @@
 const Models = {
-  data: {
-    openai: [
-      { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Most capable model, multimodal', costPerInputToken: 0.000005, costPerOutputToken: 0.000015 },
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Fast and affordable', costPerInputToken: 0.00000015, costPerOutputToken: 0.0000006 },
-      { id: 'o1-preview', name: 'o1-preview', provider: 'OpenAI', description: 'Advanced reasoning', costPerInputToken: 0.000015, costPerOutputToken: 0.00006 }
-    ],
-    claude: [
-      { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: 'Anthropic', description: 'Balanced speed and quality', costPerInputToken: 0.000003, costPerOutputToken: 0.000015 },
-      { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', provider: 'Anthropic', description: 'Most capable model', costPerInputToken: 0.000015, costPerOutputToken: 0.000075 },
-      { id: 'claude-haiku-3-5', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Ultra fast', costPerInputToken: 0.0000008, costPerOutputToken: 0.000004 }
-    ],
-    gemini: [
-      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', description: 'Premium model', costPerInputToken: 0.00000125, costPerOutputToken: 0.00001 },
-      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Fast and efficient', costPerInputToken: 0.000000075, costPerOutputToken: 0.0000003 }
-    ],
-    openrouter: [
-      { id: 'meta-llama/llama-4-maverick', name: 'Llama 4 Maverick', provider: 'Meta via OpenRouter', description: 'Open source model', costPerInputToken: 0.0000002, costPerOutputToken: 0.0000002 },
-      { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek via OpenRouter', description: 'Advanced reasoning', costPerInputToken: 0.00000055, costPerOutputToken: 0.0000022 }
-    ]
-  },
-
   running: [],
   timeInterval: null,
   currentRun: null,
+  chatHistory: [],
 
   getAlias(modelId) {
     return App.state.modelAliases.find(a => a.modelId === modelId);
@@ -56,18 +36,53 @@ const Models = {
 
     this.timeInterval = setInterval(() => this.updateTimes(), 30000);
     this.render();
+    this._fetchModelsOnStartup();
+  },
+
+  async _fetchModelsOnStartup() {
+    const keys = App.state.apiKeys;
+    const hasAnyKey = Object.values(keys).some(k => k);
+    if (hasAnyKey) {
+      try {
+        await API.fetchAllModels();
+      } catch (e) {
+        console.warn('Failed to fetch models on startup:', e);
+      }
+    }
   },
 
   getAvailableModels() {
     const available = [];
     const keys = App.state.apiKeys;
+    const allProviders = ProviderBase.getAll();
 
-    if (keys.openai) this.data.openai.forEach(m => available.push(m));
-    if (keys.anthropic) this.data.claude.forEach(m => available.push(m));
-    if (keys.google) this.data.gemini.forEach(m => available.push(m));
-    if (keys.openrouter) this.data.openrouter.forEach(m => available.push(m));
+    for (const [name, provider] of Object.entries(allProviders)) {
+      if (keys[provider.apiKeyField]) {
+        const models = ProviderBase.getModels(name);
+        models.forEach(m => available.push(m));
+      }
+    }
 
     return available;
+  },
+
+  getModelsByProvider() {
+    const keys = App.state.apiKeys;
+    const allProviders = ProviderBase.getAll();
+    const groups = [];
+
+    for (const [name, provider] of Object.entries(allProviders)) {
+      const hasKey = !!keys[provider.apiKeyField];
+      const models = hasKey ? ProviderBase.getModels(name) : [];
+      groups.push({
+        name: name,
+        displayName: provider.displayName,
+        hasKey: hasKey,
+        models: models
+      });
+    }
+
+    return groups;
   },
 
   timeAgo(dateString) {
@@ -125,22 +140,6 @@ const Models = {
     return bytes + ' B';
   },
 
-  generateMetrics(model) {
-    const inputTokens = 800 + Math.floor(Math.random() * 1200);
-    const outputTokens = 500 + Math.floor(Math.random() * 1000);
-    const duration = 1 + Math.random() * 5;
-    const cost = (inputTokens * model.costPerInputToken) + (outputTokens * model.costPerOutputToken);
-    const resultSize = 1500 + Math.floor(Math.random() * 2000);
-
-    return {
-      inputTokens,
-      outputTokens,
-      duration,
-      cost,
-      resultSize
-    };
-  },
-
   updateTimes() {
     document.querySelectorAll('.model-time').forEach(el => {
       const dateStr = el.dataset.time;
@@ -148,58 +147,151 @@ const Models = {
     });
   },
 
+  _createEl(tag, className, attrs = {}) {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === 'text') el.textContent = v;
+      else if (k === 'html') el.innerHTML = v;
+      else if (k === 'style') Object.assign(el.style, v);
+      else el.setAttribute(k === 'dataset' ? 'data-' : k, v);
+    }
+    return el;
+  },
+
+  _createModelItem(model, providerName) {
+    const item = this._createEl('div', 'model-item', { dataset: model.id });
+    const info = this._createEl('div', 'model-info');
+    info.appendChild(this._createEl('div', 'model-name', { text: model.name }));
+    const desc = (model.description || providerName).substring(0, 50);
+    info.appendChild(this._createEl('div', 'model-detail model-detail-truncated', { text: desc }));
+    item.appendChild(info);
+    const btn = this._createEl('button', 'btn btn-primary', { text: 'Run' });
+    Object.assign(btn.style, { height: '32px', fontSize: '12px', padding: '0 12px' });
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const allModels = this.getAvailableModels();
+      const recents = (App.state.recentModels || []).map(rm => ({
+        id: rm.id, name: rm.name, provider: rm.provider, description: rm.provider || ''
+      }));
+      const allAvailable = [...recents, ...allModels];
+      const found = allAvailable.find(m => m.id === model.id);
+      if (found) this.startRun(found);
+    });
+    item.appendChild(btn);
+    return item;
+  },
+
+  _createProviderGroup(group) {
+    const panel = this._createEl('div', 'provider-group run-tab-panel', { dataset: group.name });
+    const header = this._createEl('div', 'provider-group-header');
+    header.appendChild(this._createEl('span', null, { text: group.displayName }));
+    header.appendChild(this._createEl('span', 'provider-key-status valid', { text: `${group.models.length} models` }));
+    panel.appendChild(header);
+    for (const m of group.models) {
+      panel.appendChild(this._createModelItem(m, group.displayName));
+    }
+    return panel;
+  },
+
+  _createRecentsGroup(recents) {
+    const panel = this._createEl('div', 'provider-group run-tab-panel', { dataset: 'recents' });
+    const header = this._createEl('div', 'provider-group-header');
+    header.appendChild(this._createEl('span', null, { text: 'Recently Used' }));
+    panel.appendChild(header);
+    for (const rm of recents) {
+      panel.appendChild(this._createModelItem({ id: rm.id, name: rm.name, description: rm.provider || '' }, rm.provider));
+    }
+    return panel;
+  },
+
   showRunModal() {
     const body = document.getElementById('modal-run-body');
     if (!body) return;
+    body.innerHTML = '';
 
-    const models = this.getAvailableModels();
+    const groups = this.getModelsByProvider();
+    const hasAnyModels = groups.some(g => g.models.length > 0);
+    const recents = App.state.recentModels || [];
 
-    if (models.length === 0) {
-      body.innerHTML = '<p class="text-muted">Configure an API key in Settings to use models.</p>';
-    } else {
-      body.innerHTML = `
-        <input type="text" class="input run-search" id="model-search" placeholder="Search models...">
-        <div class="run-models-list" id="run-models-list">
-          ${models.map(m => `
-            <div class="model-item" data-model-id="${m.id}">
-              <div class="model-info">
-                <div class="model-name">${m.name}</div>
-                <div class="model-detail">${m.provider} - ${m.description}</div>
-              </div>
-              <button class="btn btn-primary" style="height: 32px; font-size: 12px; padding: 0 12px;">Run</button>
-            </div>
-          `).join('')}
-        </div>
-      `;
+    if (!hasAnyModels && recents.length === 0) {
+      body.appendChild(this._createEl('p', 'text-muted', { text: 'Configure an API key in Settings to use models.' }));
+      Modals.open('modal-run');
+      return;
+    }
 
-      const searchInput = document.getElementById('model-search');
-      const modelsList = document.getElementById('run-models-list');
+    const activeGroups = groups.filter(g => g.hasKey && g.models.length > 0);
+    const tabs = [];
+    if (recents.length > 0) tabs.push({ id: 'recents', label: 'Recents' });
+    activeGroups.forEach(g => tabs.push({ id: g.name, label: g.displayName }));
 
-      searchInput?.addEventListener('input', () => {
-        const query = searchInput.value.toLowerCase().trim();
-        modelsList.querySelectorAll('.model-item').forEach(item => {
-          const name = item.querySelector('.model-name')?.textContent.toLowerCase() || '';
-          const detail = item.querySelector('.model-detail')?.textContent.toLowerCase() || '';
-          const match = name.includes(query) || detail.includes(query);
-          item.style.display = match ? '' : 'none';
+    if (tabs.length > 1) {
+      const tabsBar = this._createEl('div', 'run-tabs');
+      tabs.forEach((tab, i) => {
+        const btn = this._createEl('button', `run-tab${i === 0 ? ' active' : ''}`, { text: tab.label });
+        btn.dataset.tab = tab.id;
+        btn.addEventListener('click', () => {
+          tabsBar.querySelectorAll('.run-tab').forEach(t => t.classList.remove('active'));
+          btn.classList.add('active');
+          body.querySelectorAll('.run-tab-panel').forEach(panel => {
+            panel.style.display = panel.dataset.tab === tab.id ? '' : 'none';
+          });
         });
+        tabsBar.appendChild(btn);
       });
+      body.appendChild(tabsBar);
+    }
 
-      modelsList.querySelectorAll('.model-item').forEach(item => {
-        item.querySelector('.btn')?.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const modelId = item.dataset.modelId;
-          const model = models.find(m => m.id === modelId);
-          if (model) this.startRun(model);
-        });
+    const searchInput = this._createEl('input', 'input run-search', {
+      type: 'text', placeholder: 'Search models...', id: 'model-search'
+    });
+    body.appendChild(searchInput);
+
+    const modelsList = this._createEl('div', 'run-models-list', { id: 'run-models-list' });
+
+    if (recents.length > 0) {
+      modelsList.appendChild(this._createRecentsGroup(recents));
+    }
+
+    for (const group of activeGroups) {
+      modelsList.appendChild(this._createProviderGroup(group));
+    }
+
+    body.appendChild(modelsList);
+
+    const activeTabId = tabs[0]?.id;
+    if (activeTabId) {
+      body.querySelectorAll('.run-tab-panel').forEach(panel => {
+        panel.style.display = panel.dataset.tab === activeTabId ? '' : 'none';
       });
     }
+
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase().trim();
+      const activeTab = body.querySelector('.run-tab.active')?.dataset.tab;
+      body.querySelectorAll('.run-tab-panel').forEach(panel => {
+        if (activeTab && panel.dataset.tab !== activeTab) {
+          panel.style.display = 'none';
+          return;
+        }
+        let hasVisible = false;
+        panel.querySelectorAll('.model-item').forEach(item => {
+          const name = item.querySelector('.model-name')?.textContent.toLowerCase() || '';
+          const detail = item.querySelector('.model-detail')?.textContent.toLowerCase() || '';
+          const match = !query || name.includes(query) || detail.includes(query);
+          item.style.display = match ? '' : 'none';
+          if (match) hasVisible = true;
+        });
+        panel.style.display = hasVisible ? '' : 'none';
+      });
+    });
 
     Modals.open('modal-run');
   },
 
   startRun(model) {
     this.pendingRunModel = model;
+    App.addRecentModel(model);
 
     const alias = this.getAlias(model.id);
     document.getElementById('config-model-name').textContent = model.name;
@@ -257,7 +349,7 @@ const Models = {
     return file ? file.name : 'spec';
   },
 
-  executeRun(model, context, prompt) {
+  async executeRun(model, context, prompt) {
     const specNames = context.filter(c => c.type === 'spec').map(c => c.name.replace(/\.md$/, ''));
     const filePaths = context.filter(c => c.type === 'file').map(c => c.path);
     const specName = specNames[0] || 'spec';
@@ -265,6 +357,7 @@ const Models = {
     const run = {
       id: Date.now().toString(),
       model: model,
+      context: context,
       spec: specName,
       specNames: specNames,
       filePaths: filePaths,
@@ -290,19 +383,89 @@ const Models = {
       }
     });
 
-    const delay = 2000 + Math.random() * 3000;
-    setTimeout(() => this.finishRun(run.id), delay);
+    this.openChat(run);
+    const messagesEl = document.getElementById('chat-messages');
+    this._showChatLoading(messagesEl, this.getDisplayName(model));
+
+    const abortController = new AbortController();
+    this._currentAbortController = abortController;
+    const btnStop = document.getElementById('btn-stop-chat');
+    if (btnStop) btnStop.style.display = '';
+
+    try {
+      const result = await API.sendRun(model, context, prompt, (toolEvent) => {
+        this._renderToolEvent(messagesEl, toolEvent);
+      }, abortController.signal);
+      this._removeChatLoading();
+
+      run.status = 'finished';
+      run.finished = new Date().toISOString();
+      run.result = result.content;
+      run.metrics = result.metrics;
+      run.toolHistory = result.toolHistory;
+
+      this.chatHistory = [
+        { role: 'user', content: prompt }
+      ];
+      if (result.toolHistory && result.toolHistory.length > 0) {
+        this.chatHistory.push({
+          role: 'assistant',
+          content: result.content,
+          toolCalls: result.toolHistory.map(th => ({
+            id: th.toolCallId,
+            name: th.toolName,
+            arguments: th.arguments
+          }))
+        });
+        for (const th of result.toolHistory) {
+          this.chatHistory.push({ toolCallId: th.toolCallId, toolName: th.toolName, content: th.result });
+        }
+      } else {
+        this.chatHistory.push({ role: 'assistant', content: result.content });
+      }
+
+      this._finishRun(run);
+    } catch (error) {
+      this._removeChatLoading();
+      this._currentAbortController = null;
+      const btnStop = document.getElementById('btn-stop-chat');
+      if (btnStop) btnStop.style.display = 'none';
+
+      if (error.name === 'AbortError') {
+        run.status = 'cancelled';
+        run.finished = new Date().toISOString();
+        run.result = 'Cancelled by user';
+
+        const messagesEl = document.getElementById('chat-messages');
+        if (messagesEl) {
+          const cancelEl = document.createElement('div');
+          cancelEl.className = 'chat-msg chat-msg-error';
+          cancelEl.innerHTML = `<div class="chat-msg-author">Stopped</div>Request cancelled by user.`;
+          messagesEl.appendChild(cancelEl);
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+      } else {
+        run.status = 'error';
+        run.finished = new Date().toISOString();
+        run.result = `Error: ${error.message}`;
+        run.metrics = null;
+
+        const messagesEl = document.getElementById('chat-messages');
+        if (messagesEl) {
+          const errorEl = document.createElement('div');
+          errorEl.className = 'chat-msg chat-msg-error';
+          errorEl.innerHTML = `<div class="chat-msg-author">Error</div>${ProviderBase.escapeHtml(error.message)}`;
+          messagesEl.appendChild(errorEl);
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+      }
+
+      this.render();
+      App.updateCounts();
+    }
   },
 
-  finishRun(runId) {
-    const run = this.running.find(r => r.id === runId);
-    if (!run) return;
-
-    run.status = 'finished';
-    run.finished = new Date().toISOString();
-    run.result = this.generateMockResult(run);
-    run.metrics = this.generateMetrics(run.model);
-
+  _finishRun(run) {
     const alias = this.getAlias(run.model.id);
     const record = {
       id: run.id,
@@ -317,11 +480,13 @@ const Models = {
       started: run.started,
       finished: run.finished,
       result: run.result,
-      inputTokens: run.metrics.inputTokens,
-      outputTokens: run.metrics.outputTokens,
-      duration: run.metrics.duration,
-      cost: run.metrics.cost,
-      resultSize: run.metrics.resultSize
+      inputTokens: run.metrics?.inputTokens || 0,
+      outputTokens: run.metrics?.outputTokens || 0,
+      duration: run.metrics?.duration || 0,
+      cost: run.metrics?.cost || 0,
+      resultSize: run.metrics?.resultSize || 0,
+      toolCalls: run.metrics?.toolCalls || 0,
+      iterations: run.metrics?.iterations || 1
     };
     App.state.runHistory.unshift(record);
     App.saveRunHistory();
@@ -330,6 +495,27 @@ const Models = {
     App.updateCounts();
     Notifications.show(`${this.getDisplayName(run.model)} finished processing ${(run.specNames || [run.spec]).join(', ')}`);
 
+    const messagesEl = document.getElementById('chat-messages');
+    if (messagesEl) {
+      const aiMsg = document.createElement('div');
+      aiMsg.className = 'chat-msg';
+      let metricsHtml = '';
+      if (run.metrics) {
+        metricsHtml = `<div class="chat-msg-metrics">
+          <span>${this.formatTokens(run.metrics.inputTokens)} in · ${this.formatTokens(run.metrics.outputTokens)} out</span>
+          <span>·</span>
+          <span>${this.formatDuration(run.metrics.duration)}</span>
+          <span>·</span>
+          <span>${this.formatCost(run.metrics.cost)}</span>
+        </div>`;
+      }
+      aiMsg.innerHTML = `<div class="chat-msg-author">${this.getDisplayName(run.model)}</div>${ProviderBase.formatMarkdown(run.result)}${metricsHtml}`;
+      messagesEl.appendChild(aiMsg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    this._updateChatMetrics(run);
+
     requestAnimationFrame(() => {
       const el = document.querySelector(`.model-item[data-run-id="${run.id}"] .model-status`);
       if (el) {
@@ -337,6 +523,132 @@ const Models = {
         el.addEventListener('animationend', () => el.classList.remove('status-changed'), { once: true });
       }
     });
+  },
+
+  _showChatLoading(container, modelName) {
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = 'chat-msg chat-msg-loading';
+    el.id = 'chat-loading';
+    el.innerHTML = `
+      <div class="chat-spinner"></div>
+      <span>${modelName} is thinking...</span>
+    `;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+  },
+
+  _removeChatLoading() {
+    document.getElementById('chat-loading')?.remove();
+  },
+
+  _renderToolEvent(container, event) {
+    if (!container) return;
+    if (event.type === 'call') {
+      const el = document.createElement('div');
+      el.className = 'chat-tool-call';
+      el.innerHTML = `
+        <div class="chat-tool-header">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          <span class="chat-tool-name">${ProviderBase.escapeHtml(event.name)}</span>
+          <span class="chat-tool-status">executing...</span>
+        </div>
+        <div class="chat-tool-args">${ProviderBase.escapeHtml(JSON.stringify(event.arguments, null, 2))}</div>
+      `;
+      container.appendChild(el);
+      container.scrollTop = container.scrollHeight;
+    } else if (event.type === 'result') {
+      const existing = container.querySelectorAll('.chat-tool-call');
+      const lastTool = existing[existing.length - 1];
+      if (lastTool) {
+        const statusEl = lastTool.querySelector('.chat-tool-status');
+        if (statusEl) {
+          const isError = event.result && event.result.startsWith && event.result.startsWith('Error');
+          statusEl.textContent = isError ? 'error' : 'done';
+          statusEl.classList.add(isError ? 'chat-tool-error' : 'chat-tool-success');
+        }
+      }
+    }
+  },
+
+  _estimateTokens(text) {
+    if (!text) return 0;
+    return Math.ceil(text.length / 4);
+  },
+
+  _updateContextBar() {
+    const run = this.currentRun;
+    if (!run) return;
+
+    const basePrompt = API.buildSystemPrompt([]);
+    const systemTokens = this._estimateTokens(basePrompt);
+
+    let contextTokens = 0;
+    for (const item of (run.context || [])) {
+      contextTokens += this._estimateTokens(item.content || '');
+    }
+
+    let historyTokens = 0;
+    for (const msg of this.chatHistory) {
+      historyTokens += this._estimateTokens(msg.content || '');
+    }
+
+    const totalTokens = systemTokens + contextTokens + historyTokens;
+    const maxTokens = 128000;
+    const pct = Math.min((totalTokens / maxTokens) * 100, 100);
+
+    const tokensEl = document.getElementById('chat-context-tokens');
+    const fillEl = document.getElementById('chat-context-bar-fill');
+    const sysEl = document.getElementById('ctx-system-tokens');
+    const ctxEl = document.getElementById('ctx-context-tokens');
+    const histEl = document.getElementById('ctx-history-tokens');
+    const maxEl = document.getElementById('ctx-max-tokens');
+
+    if (tokensEl) tokensEl.textContent = `${this.formatTokens(totalTokens)} / ${this.formatTokens(maxTokens)} tokens`;
+    if (fillEl) {
+      fillEl.style.width = pct + '%';
+      fillEl.className = 'chat-context-bar-fill';
+      if (pct > 80) fillEl.classList.add('danger');
+      else if (pct > 50) fillEl.classList.add('warning');
+    }
+    if (sysEl) sysEl.textContent = this.formatTokens(systemTokens);
+    if (ctxEl) ctxEl.textContent = this.formatTokens(contextTokens);
+    if (histEl) histEl.textContent = this.formatTokens(historyTokens);
+    if (maxEl) maxEl.textContent = this.formatTokens(maxTokens);
+  },
+
+  _initContextToggle() {
+    const toggle = document.getElementById('chat-context-toggle');
+    const details = document.getElementById('chat-context-details');
+    if (toggle && details) {
+      toggle.addEventListener('click', () => {
+        const isOpen = details.style.display !== 'none';
+        details.style.display = isOpen ? 'none' : '';
+        toggle.classList.toggle('open', !isOpen);
+      });
+    }
+  },
+
+  _updateChatMetrics(run) {
+    const metricsInline = document.getElementById('chat-metrics-inline');
+    if (!metricsInline || !run.metrics) return;
+
+    metricsInline.innerHTML = `
+      <span class="chat-metric-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        ${this.formatTokens(run.metrics.inputTokens)} in · ${this.formatTokens(run.metrics.outputTokens)} out
+      </span>
+      <span class="chat-metric-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        ${this.formatDuration(run.metrics.duration)}
+      </span>
+      <span class="chat-metric-item">
+        ${this.formatCost(run.metrics.cost)}
+      </span>
+      <span class="chat-metric-item">
+        ${this.formatSize(run.metrics.resultSize)}
+      </span>
+    `;
   },
 
   removeRun(runId) {
@@ -358,27 +670,6 @@ const Models = {
       App.updateCounts();
       Notifications.show(`${this.getDisplayName(run.model)} removed from list`);
     }
-  },
-
-  generateMockResult(run) {
-    const displayName = this.getDisplayName(run.model);
-    return `# Analysis of ${run.spec}.md
-
-## Summary
-The specification has been analyzed by ${displayName}.
-
-## Observations
-- The structure follows standard practices
-- Consider adding more detailed error handling
-- Response formats are well defined
-
-## Recommendations
-1. Add version control for the API
-2. Include rate limiting specifications
-3. Consider adding webhook support
-
-## Code Review
-The specification is clear and well-organized. Minor improvements suggested for completeness.`;
   },
 
   renderMetrics(metrics) {
@@ -414,6 +705,7 @@ The specification is clear and well-organized. Minor improvements suggested for 
       const timeSource = run.status === 'finished' ? (run.finished || run.started) : run.started;
       const timeText = this.timeAgo(timeSource);
       const alias = this.getAlias(run.model.id);
+      const statusClass = run.status === 'error' ? 'error' : run.status;
 
       return `
         <div class="model-item" data-run-id="${run.id}">
@@ -423,9 +715,9 @@ The specification is clear and well-organized. Minor improvements suggested for 
             <div class="model-detail">${run.spec}.md</div>
           </div>
           <span class="model-time" data-time="${timeSource}">${timeText}</span>
-          <span class="model-status ${run.status}">${run.status}</span>
+          <span class="model-status ${statusClass}">${run.status}</span>
           <div class="model-actions">
-            ${run.status === 'finished' ? `
+            ${run.status === 'finished' || run.status === 'error' ? `
               <button class="model-open">Open</button>
               <button class="model-close" title="Remove">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -457,7 +749,7 @@ The specification is clear and well-organized. Minor improvements suggested for 
       item.addEventListener('click', () => {
         const runId = item.dataset.runId;
         const run = this.running.find(r => r.id === runId);
-        if (run && run.status === 'finished') {
+        if (run && (run.status === 'finished' || run.status === 'error')) {
           this.openChat(run);
         }
       });
@@ -497,7 +789,7 @@ The specification is clear and well-organized. Minor improvements suggested for 
         item.addEventListener('click', () => {
           const runId = item.dataset.runId;
           const run = this.running.find(r => r.id === runId);
-          if (run && run.status === 'finished') {
+          if (run && (run.status === 'finished' || run.status === 'error')) {
             this.openChat(run);
           }
           Files.hideDropdowns();
@@ -517,6 +809,16 @@ The specification is clear and well-organized. Minor improvements suggested for 
   openChat(run) {
     run.lastAccessed = new Date().toISOString();
     this.currentRun = run;
+
+    if (run.result && !run.chatHistory) {
+      this.chatHistory = [
+        { role: 'assistant', content: run.result }
+      ];
+    } else if (!run.chatHistory) {
+      this.chatHistory = [];
+    } else {
+      this.chatHistory = [...run.chatHistory];
+    }
 
     const title = document.getElementById('chat-title');
     const subtitle = document.getElementById('chat-subtitle');
@@ -552,15 +854,25 @@ The specification is clear and well-organized. Minor improvements suggested for 
     }
 
     if (messages) {
-      messages.innerHTML = `
-        <div class="chat-msg">
-          <strong>${displayName}</strong>
-          ${run.result}
-        </div>
-      `;
+      if (run.result) {
+        messages.innerHTML = `
+          <div class="chat-msg">
+            <div class="chat-msg-author">${displayName}</div>
+            ${ProviderBase.formatMarkdown(run.result)}
+          </div>
+        `;
+      } else {
+        messages.innerHTML = '';
+      }
     }
-    if (input) input.value = '';
+    if (input) {
+      input.value = '';
+      input.disabled = false;
+      input.classList.remove('chat-input-disabled');
+    }
 
+    this._initContextToggle();
+    this._updateContextBar();
     Modals.open('modal-chat');
   },
 
@@ -669,6 +981,10 @@ The specification is clear and well-organized. Minor improvements suggested for 
       }
     };
 
+    this.chatHistory = [
+      { role: 'assistant', content: record.result }
+    ];
+
     if (title) title.textContent = displayName;
     if (subtitle) subtitle.textContent = record.modelName;
 
@@ -694,12 +1010,16 @@ The specification is clear and well-organized. Minor improvements suggested for 
     if (messages) {
       messages.innerHTML = `
         <div class="chat-msg">
-          <strong>${displayName}</strong>
-          ${record.result}
+          <div class="chat-msg-author">${displayName}</div>
+          ${ProviderBase.formatMarkdown(record.result)}
         </div>
       `;
     }
-    if (input) input.value = '';
+    if (input) {
+      input.value = '';
+      input.disabled = false;
+      input.classList.remove('chat-input-disabled');
+    }
 
     Modals.close('modal-history');
     Modals.open('modal-chat');

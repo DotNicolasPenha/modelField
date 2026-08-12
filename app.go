@@ -27,11 +27,31 @@ type File struct {
 	Created   string   `json:"created"`
 	Modified  string   `json:"modified"`
 	RefPaths  []string `json:"refPaths,omitempty"`
+	Trashed   bool     `json:"trashed"`
+	TrashedAt string   `json:"trashedAt,omitempty"`
 }
 
 type ModelAlias struct {
 	ModelID    string `json:"modelId"`
 	CustomName string `json:"customName"`
+}
+
+type ModelInfo struct {
+	ID                string  `json:"id"`
+	Name              string  `json:"name"`
+	Provider          string  `json:"provider"`
+	Description       string  `json:"description"`
+	CostPerInputToken float64 `json:"costPerInputToken"`
+	CostPerOutputToken float64 `json:"costPerOutputToken"`
+}
+
+type CachedModels struct {
+	Models    []ModelInfo `json:"models"`
+	FetchedAt string      `json:"fetchedAt"`
+}
+
+type ModelsCache struct {
+	Providers map[string]CachedModels `json:"providers"`
 }
 
 type RunRecord struct {
@@ -52,6 +72,8 @@ type RunRecord struct {
 	Duration       float64  `json:"duration"`
 	Cost           float64  `json:"cost"`
 	ResultSize     int      `json:"resultSize"`
+	ToolCalls      int      `json:"toolCalls"`
+	Iterations     int      `json:"iterations"`
 }
 
 type CheckItem struct {
@@ -167,6 +189,19 @@ func (a *App) GetModelAliases() []ModelAlias {
 
 func (a *App) SaveModelAliases(aliases []ModelAlias) error {
 	return a.writeJSON("model_aliases.json", aliases)
+}
+
+func (a *App) GetModelsCache() ModelsCache {
+	var cache ModelsCache
+	a.readJSON("models_cache.json", &cache)
+	if cache.Providers == nil {
+		cache.Providers = make(map[string]CachedModels)
+	}
+	return cache
+}
+
+func (a *App) SaveModelsCache(cache ModelsCache) error {
+	return a.writeJSON("models_cache.json", cache)
 }
 
 func (a *App) GetRunHistory() []RunRecord {
@@ -293,6 +328,10 @@ func (a *App) ReadFileContent(path string) string {
 		return ""
 	}
 	return string(data)
+}
+
+func (a *App) SaveFileContent(path string, content string) error {
+	return os.WriteFile(path, []byte(content), 0644)
 }
 
 func (a *App) GetFileInfo(path string) FileInfo {

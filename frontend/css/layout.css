@@ -183,7 +183,7 @@
 .modal-sm { max-width: 400px; }
 .modal-md { max-width: 560px; }
 .modal-lg { max-width: 720px; }
-.modal-xl { max-width: 960px; }
+.modal-xl { max-width: 1100px; }
 .modal-header {
   padding: var(--space-4) var(--space-5);
   display: flex;
@@ -218,6 +218,27 @@
   font-size: var(--font-size-md);
   color: var(--text-secondary);
   margin-bottom: var(--space-2);
+  text-align: center;
+}
+
+#modal-settings .modal-body {
+  display: flex;
+  flex-direction: column;
+  background: red;
+}
+
+#modal-settings .section-title {
+  text-align: center;
+}
+
+#modal-settings .api-key-row {
+  width: 100%;
+  max-width: 420px;
+}
+
+#modal-settings .form-group {
+  width: 100%;
+  max-width: 420px;
 }
 
 .section-title {

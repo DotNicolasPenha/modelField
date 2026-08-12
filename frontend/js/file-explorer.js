@@ -62,12 +62,14 @@ const FileExplorer = {
     if (!App.state.selectedSpecs.includes(fileId)) {
       App.state.selectedSpecs.push(fileId);
       this.renderContext();
+      App.saveContext();
     }
   },
 
   deselectSpec(fileId) {
     App.state.selectedSpecs = (App.state.selectedSpecs || []).filter(id => id !== fileId);
     this.renderContext();
+    App.saveContext();
   },
 
   selectFile(path) {
@@ -75,18 +77,21 @@ const FileExplorer = {
     if (!App.state.selectedFiles.includes(path)) {
       App.state.selectedFiles.push(path);
       this.renderContext();
+      App.saveContext();
     }
   },
 
   deselectFile(path) {
     App.state.selectedFiles = (App.state.selectedFiles || []).filter(p => p !== path);
     this.renderContext();
+    App.saveContext();
   },
 
   clearAll() {
     App.state.selectedSpecs = [];
     App.state.selectedFiles = [];
     this.renderContext();
+    App.saveContext();
     Notifications.show('Context cleared');
   },
 
@@ -98,7 +103,13 @@ const FileExplorer = {
 
     const files = (App.state.selectedFiles || []).map(path => {
       const name = path.split('/').pop();
-      return { name, path, type: 'file' };
+      let content = '';
+      const diskFileId = 'disk://' + path;
+      const diskFile = App.state.diskCache && App.state.diskCache[diskFileId];
+      if (diskFile) {
+        content = diskFile.content || '';
+      }
+      return { name, path, content, type: 'file' };
     });
 
     return [...specs, ...files];

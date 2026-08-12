@@ -145,11 +145,11 @@ const Projects = {
   },
 
   async switchProject(projectId) {
+    App.saveContext();
     App.state.currentProject = projectId;
     App.state.openFiles = [];
     App.state.activeFile = null;
-    App.state.selectedSpecs = [];
-    App.state.selectedFiles = [];
+    App.loadContext();
     await App.saveCurrentProject();
     await App.loadDirTree();
 
@@ -168,11 +168,13 @@ const Projects = {
 
     App.state.projects = App.state.projects.filter(p => p.id !== projectId);
     App.state.files = App.state.files.filter(f => f.projectId !== projectId);
+    localStorage.removeItem(`modelfield-context-${projectId}`);
 
     if (App.state.currentProject === projectId) {
       App.state.currentProject = App.state.projects[0]?.id || null;
       App.state.openFiles = [];
       App.state.activeFile = null;
+      App.loadContext();
       await App.saveCurrentProject();
     }
 
