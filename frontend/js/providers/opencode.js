@@ -1,22 +1,23 @@
-const NvidiaProvider = {
-  name: 'nvidia',
-  displayName: 'NVIDIA',
-  apiKeyField: 'nvidia',
-  keyPlaceholder: 'nvapi-...',
-  baseUrl: 'https://integrate.api.nvidia.com/v1',
+const OpenCodeZenProvider = {
+  name: 'opencode',
+  displayName: 'OpenCode Zen',
+  apiKeyField: 'opencode',
+  keyPlaceholder: 'sk-...',
+  baseUrl: 'https://opencode.ai/zen/v1',
+  needsProxy: true,
 
   models: [
-    { id: 'nvidia/nemotron-3-nano-omni', name: 'Nemotron 3 Nano Omni', provider: 'NVIDIA', description: 'Fast multimodal reasoning', costPerInputToken: 0.0000002, costPerOutputToken: 0.0000002 },
-    { id: 'nvidia/llama-3.3-nemotron-super-49b-v1', name: 'Nemotron Super 49B', provider: 'NVIDIA', description: 'Balanced performance', costPerInputToken: 0.0000002, costPerOutputToken: 0.0000002 },
-    { id: 'nvidia/llama-3.1-nemotron-ultra-253b-v1', name: 'Nemotron Ultra 253B', provider: 'NVIDIA', description: 'Maximum capability', costPerInputToken: 0.0000003, costPerOutputToken: 0.0000003 },
-    { id: 'nvidia/nemotron-3-super-120b-a12b', name: 'Nemotron 3 Super 120B', provider: 'NVIDIA', description: 'Large context reasoning', costPerInputToken: 0.0000003, costPerOutputToken: 0.0000003 },
-    { id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', provider: 'NVIDIA', description: 'Meta open source', costPerInputToken: 0.0000002, costPerOutputToken: 0.0000002 }
+    { id: 'big-pickle', name: 'Big Pickle', provider: 'OpenCode Zen', description: 'Free coding model', costPerInputToken: 0, costPerOutputToken: 0 },
+    { id: 'x-preview-f-free', name: 'Ox Alpha Free', provider: 'OpenCode Zen', description: 'Free model', costPerInputToken: 0, costPerOutputToken: 0 },
+    { id: 'mimo-v2.5-free', name: 'MiMo-V2.5 Free', provider: 'OpenCode Zen', description: 'Free reasoning model', costPerInputToken: 0, costPerOutputToken: 0 },
+    { id: 'hy3-free', name: 'Hy3 Free', provider: 'OpenCode Zen', description: 'Free model', costPerInputToken: 0, costPerOutputToken: 0 },
+    { id: 'glm-5', name: 'GLM 5', provider: 'OpenCode Zen', description: 'Advanced general model', costPerInputToken: 0, costPerOutputToken: 0 },
+    { id: 'kimi-k3', name: 'Kimi K3', provider: 'OpenCode Zen', description: 'Advanced coding model', costPerInputToken: 0, costPerOutputToken: 0 }
   ],
 
   async validateKey(apiKey) {
     try {
-      const response = await fetch(`${this.baseUrl}/models`, {
-        method: 'GET',
+      const response = await ProviderBase.http(this.name, `${this.baseUrl}/models`, {
         headers: this.buildHeaders(apiKey)
       });
       if (response.ok) {
@@ -25,9 +26,6 @@ const NvidiaProvider = {
       if (response.status === 401 || response.status === 403) {
         return { valid: false, error: 'Invalid API key' };
       }
-      if (response.status === 402) {
-        return { valid: false, error: 'No credits remaining' };
-      }
       return { valid: false, error: `API error ${response.status}` };
     } catch (e) {
       return { valid: false, error: 'Network error: ' + e.message };
@@ -35,22 +33,23 @@ const NvidiaProvider = {
   },
 
   async fetchModels(apiKey) {
-    const response = await fetch(`${this.baseUrl}/models`, {
-      method: 'GET',
+    const response = await ProviderBase.http(this.name, `${this.baseUrl}/models`, {
       headers: this.buildHeaders(apiKey)
     });
     if (!response.ok) {
       throw new Error(`Failed to fetch models: ${response.status}`);
     }
     const data = await response.json();
-    const chatPrefixes = ['nvidia/', 'meta/', 'mistralai/', 'google/', 'deepseek-ai/'];
-    return (data.data || [])
-      .filter(m => chatPrefixes.some(p => m.id.startsWith(p)))
+    const raw = Array.isArray(data) ? data : (data.data || []);
+    return raw
+      .map(m => typeof m === 'string' ? { id: m } : m)
+      .filter(m => m.id && !/^(gpt-|claude-|gemini-)/.test(m.id))
+      .slice(0, 100)
       .map(m => ({
         id: m.id,
-        name: m.id.split('/').pop().split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-        provider: 'NVIDIA',
-        description: m.owned_by || ''
+        name: m.name || m.id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        provider: 'OpenCode Zen',
+        description: m.description || m.owned_by || ''
       }));
   },
 
@@ -66,18 +65,18 @@ const NvidiaProvider = {
       model: model.id,
       messages: messages,
       temperature: options.temperature ?? 0.7,
-      max_tokens: Math.min(options.maxTokens ?? 4096, 4096)
+      max_tokens: options.maxTokens ?? 4096
     };
     return body;
   },
 
   parseResponse(data) {
     if (data.error) {
-      throw new Error(data.error.message || 'NVIDIA API error');
+      throw new Error(data.error.message || 'OpenCode Zen API error');
     }
     const choice = data.choices?.[0];
     if (!choice) {
-      throw new Error('No response from NVIDIA');
+      throw new Error('No response from OpenCode Zen');
     }
     const message = choice.message || {};
     const toolCalls = (message.tool_calls || []).map(tc => ({
@@ -119,4 +118,4 @@ const NvidiaProvider = {
   }
 };
 
-ProviderBase.register('nvidia', NvidiaProvider);
+ProviderBase.register('opencode', OpenCodeZenProvider);

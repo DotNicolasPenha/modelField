@@ -217,26 +217,28 @@
   display: block;
   font-size: var(--font-size-md);
   color: var(--text-secondary);
+    text-align: start;
+
   margin-bottom: var(--space-2);
-  text-align: center;
 }
 
 #modal-settings .modal-body {
   display: flex;
   flex-direction: column;
-  background: red;
-}
+  align-items: center;
+  text-align: start;
 
-#modal-settings .section-title {
-  text-align: center;
 }
 
 #modal-settings .api-key-row {
   width: 100%;
+  text-align: start;
   max-width: 420px;
 }
 
 #modal-settings .form-group {
+    text-align: start;
+
   width: 100%;
   max-width: 420px;
 }

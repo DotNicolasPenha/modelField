@@ -2,6 +2,7 @@ const OpenAIProvider = {
   name: 'openai',
   displayName: 'OpenAI',
   apiKeyField: 'openai',
+  keyPlaceholder: 'sk-...',
   baseUrl: 'https://api.openai.com/v1',
 
   models: [

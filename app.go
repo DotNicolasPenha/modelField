@@ -4,20 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
-
-type APIKeys struct {
-	OpenAI     string `json:"openai"`
-	Anthropic  string `json:"anthropic"`
-	Google     string `json:"google"`
-	OpenRouter string `json:"openrouter"`
-}
 
 type File struct {
 	ID        string   `json:"id"`
@@ -157,13 +153,16 @@ func (a *App) writeJSON(filename string, data interface{}) error {
 	return os.WriteFile(path, jsonData, 0644)
 }
 
-func (a *App) GetAPIKeys() APIKeys {
-	var keys APIKeys
+func (a *App) GetAPIKeys() map[string]string {
+	var keys map[string]string
 	a.readJSON("api_keys.json", &keys)
 	return keys
 }
 
-func (a *App) SaveAPIKeys(keys APIKeys) error {
+func (a *App) SaveAPIKeys(keys map[string]string) error {
+	if keys == nil {
+		keys = map[string]string{}
+	}
 	return a.writeJSON("api_keys.json", keys)
 }
 
@@ -361,3 +360,39 @@ func (a *App) GetFileInfo(path string) FileInfo {
 	}
 	return fi
 }
+
+type HTTPResponse struct {
+	Status int    `json:"status"`
+	Body   string `json:"body"`
+}
+
+// HTTPFetch proxies HTTP requests from the frontend, bypassing webview CORS restrictions.
+func (a *App) HTTPFetch(method string, url string, headers map[string]string, body string) (HTTPResponse, error) {
+	if !strings.HasPrefix(url, "https://") {
+		return HTTPResponse{}, fmt.Errorf("only https URLs are allowed")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, method, url, strings.NewReader(body))
+	if err != nil {
+		return HTTPResponse{}, err
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return HTTPResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 20<<20))
+	if err != nil {
+		return HTTPResponse{}, err
+	}
+	return HTTPResponse{Status: resp.StatusCode, Body: string(data)}, nil
+}
+

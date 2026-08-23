@@ -178,20 +178,6 @@ const Modals = {
     document.getElementById('btn-clear-context')?.addEventListener('click', () => {
       FileExplorer.clearAll();
     });
-
-    document.querySelectorAll('.btn-test-key').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const provider = btn.dataset.provider;
-        if (provider) this.testKey(provider);
-      });
-    });
-
-    document.querySelectorAll('.btn-clear-key').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const provider = btn.dataset.provider;
-        if (provider) this.clearKey(provider);
-      });
-    });
   },
 
   showTaskSelect() {
@@ -238,31 +224,83 @@ const Modals = {
     if (modal) modal.classList.remove('active');
   },
 
-  openSettings() {
-    const keys = App.state.apiKeys;
-    document.getElementById('api-openai').value = keys.openai || '';
-    document.getElementById('api-anthropic').value = keys.anthropic || '';
-    document.getElementById('api-google').value = keys.google || '';
-    document.getElementById('api-openrouter').value = keys.openrouter || '';
+  _renderApiKeyRows() {
+    const container = document.getElementById('api-keys-list');
+    if (!container) return;
+    container.innerHTML = '';
 
-    ['openai', 'anthropic', 'google', 'openrouter'].forEach(p => {
-      const statusEl = document.getElementById(`status-${p}`);
-      if (statusEl) {
-        statusEl.textContent = '';
-        statusEl.className = 'key-status';
-      }
+    const providers = Object.values(ProviderBase.getAll())
+      .sort((a, b) => (a.displayName || a.name).localeCompare(b.displayName || b.name));
+
+    for (const provider of providers) {
+      const field = provider.apiKeyField;
+      if (!field) continue;
+
+      const group = document.createElement('div');
+      group.className = 'form-group';
+
+      const label = document.createElement('label');
+      label.className = 'form-label';
+      label.textContent = provider.displayName || provider.name;
+      group.appendChild(label);
+
+      const row = document.createElement('div');
+      row.className = 'api-key-row';
+
+      const input = document.createElement('input');
+      input.type = 'password';
+      input.className = 'input';
+      input.id = `api-${field}`;
+      input.dataset.providerInput = field;
+      input.placeholder = provider.keyPlaceholder || '';
+
+      const testBtn = document.createElement('button');
+      testBtn.className = 'btn btn-secondary btn-test-key';
+      testBtn.dataset.provider = provider.name;
+      testBtn.textContent = 'Test';
+      testBtn.addEventListener('click', () => this.testKey(provider.name));
+
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'btn btn-primary btn-clear-key';
+      clearBtn.dataset.provider = field;
+      clearBtn.textContent = 'Clear';
+      clearBtn.addEventListener('click', () => this.clearKey(provider.name));
+
+      const status = document.createElement('span');
+      status.className = 'key-status';
+      status.id = `status-${field}`;
+
+      row.appendChild(input);
+      row.appendChild(testBtn);
+      row.appendChild(clearBtn);
+      row.appendChild(status);
+      group.appendChild(row);
+      container.appendChild(group);
+    }
+  },
+
+  openSettings() {
+    this._renderApiKeyRows();
+
+    const keys = App.state.apiKeys;
+    document.querySelectorAll('[data-provider-input]').forEach(input => {
+      input.value = keys[input.dataset.providerInput] || '';
+    });
+
+    document.querySelectorAll('.key-status').forEach(el => {
+      el.textContent = 'Not Tested';
+      el.className = 'key-status';
     });
 
     this.open('modal-settings');
   },
 
   async saveSettings() {
-    App.state.apiKeys = {
-      openai: document.getElementById('api-openai')?.value.trim() || '',
-      anthropic: document.getElementById('api-anthropic')?.value.trim() || '',
-      google: document.getElementById('api-google')?.value.trim() || '',
-      openrouter: document.getElementById('api-openrouter')?.value.trim() || ''
-    };
+    const keys = { ...App.state.apiKeys };
+    document.querySelectorAll('[data-provider-input]').forEach(input => {
+      keys[input.dataset.providerInput] = input.value.trim();
+    });
+    App.state.apiKeys = keys;
     await App.saveAPIKeys();
 
     const changedProviders = [];
@@ -278,6 +316,11 @@ const Modals = {
       Notifications.show('Saving and validating keys...');
       for (const name of changedProviders) {
         await this.testKey(name);
+      }
+      try {
+        await API.fetchAllModels();
+      } catch (e) {
+        console.warn('Failed to refresh model catalog:', e);
       }
     }
 
@@ -303,7 +346,7 @@ const Modals = {
     statusEl.textContent = 'Testing...';
     statusEl.className = 'key-status testing';
 
-    const result = await API.validateKey(providerName);
+    const result = await API.validateKey(providerName, apiKey);
 
     if (result.valid) {
       statusEl.textContent = 'Valid';

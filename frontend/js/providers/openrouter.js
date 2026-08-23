@@ -2,6 +2,7 @@ const OpenRouterProvider = {
   name: 'openrouter',
   displayName: 'OpenRouter',
   apiKeyField: 'openrouter',
+  keyPlaceholder: 'sk-or-...',
   baseUrl: 'https://openrouter.ai/api/v1',
 
   models: [

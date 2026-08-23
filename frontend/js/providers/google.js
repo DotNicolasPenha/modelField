@@ -2,6 +2,7 @@ const GoogleProvider = {
   name: 'google',
   displayName: 'Google',
   apiKeyField: 'google',
+  keyPlaceholder: 'AI...',
   baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
 
   models: [

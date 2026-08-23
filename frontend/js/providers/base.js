@@ -6,6 +6,33 @@ const ProviderBase = {
     this._providers[name] = provider;
   },
 
+  _usesProxy(name) {
+    const provider = this.get(name);
+    return !!(provider && provider.needsProxy && window.go && window.go.main && window.go.main.App && window.go.main.App.HTTPFetch);
+  },
+
+  // Unified HTTP helper. Providers flagged with needsProxy are routed through
+  // the Go backend to bypass webview CORS restrictions.
+  async http(name, url, options = {}) {
+    const method = options.method || 'GET';
+    const headers = options.headers || {};
+    if (this._usesProxy(name)) {
+      const resp = await window.go.main.App.HTTPFetch(method, url, headers, options.body || '');
+      return {
+        ok: resp.status >= 200 && resp.status < 300,
+        status: resp.status,
+        json: async () => JSON.parse(resp.body),
+        text: async () => resp.body
+      };
+    }
+    return fetch(url, {
+      method: method,
+      headers: headers,
+      body: options.body || undefined,
+      signal: options.signal
+    });
+  },
+
   get(name) {
     return this._providers[name] || null;
   },

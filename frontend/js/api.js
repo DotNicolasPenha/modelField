@@ -2,12 +2,12 @@ const API = {
   _requests: new Map(),
   MAX_TOOL_ROUNDS: 10,
 
-  async validateKey(providerName) {
+  async validateKey(providerName, apiKeyOverride) {
     const provider = ProviderBase.get(providerName);
     if (!provider) {
       return { valid: false, error: 'Provider not found' };
     }
-    const apiKey = App.state.apiKeys[provider.apiKeyField];
+    const apiKey = apiKeyOverride || App.state.apiKeys[provider.apiKeyField];
     if (!apiKey) {
       return { valid: false, error: 'No API key configured' };
     }
@@ -89,7 +89,7 @@ const API = {
         tools: toolsEnabled ? tools : undefined
       });
 
-      const response = await fetch(url, {
+      const response = await ProviderBase.http(provider.name, url, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(body),
@@ -232,7 +232,7 @@ const API = {
         tools: toolsEnabled ? tools : undefined
       });
 
-      const response = await fetch(url, {
+      const response = await ProviderBase.http(provider.name, url, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(body),

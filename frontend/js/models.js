@@ -42,12 +42,19 @@ const Models = {
   async _fetchModelsOnStartup() {
     const keys = App.state.apiKeys;
     const hasAnyKey = Object.values(keys).some(k => k);
-    if (hasAnyKey) {
-      try {
-        await API.fetchAllModels();
-      } catch (e) {
-        console.warn('Failed to fetch models on startup:', e);
+    if (!hasAnyKey) return;
+    try {
+      const results = await API.fetchAllModels();
+      const fetched = Object.values(results).filter(r => r.fromApi).length;
+      if (fetched > 0) {
+        console.info(`Model catalog updated (${fetched} provider(s) refreshed)`);
+        this.render();
+        if (document.getElementById('modal-run')?.classList.contains('active')) {
+          this.showRunModal();
+        }
       }
+    } catch (e) {
+      console.warn('Failed to fetch models on startup:', e);
     }
   },
 
@@ -154,13 +161,13 @@ const Models = {
       if (k === 'text') el.textContent = v;
       else if (k === 'html') el.innerHTML = v;
       else if (k === 'style') Object.assign(el.style, v);
-      else el.setAttribute(k === 'dataset' ? 'data-' : k, v);
+      else el.setAttribute(k, v);
     }
     return el;
   },
 
   _createModelItem(model, providerName) {
-    const item = this._createEl('div', 'model-item', { dataset: model.id });
+    const item = this._createEl('div', 'model-item', { 'data-model-id': model.id });
     const info = this._createEl('div', 'model-info');
     info.appendChild(this._createEl('div', 'model-name', { text: model.name }));
     const desc = (model.description || providerName).substring(0, 50);
@@ -183,7 +190,7 @@ const Models = {
   },
 
   _createProviderGroup(group) {
-    const panel = this._createEl('div', 'provider-group run-tab-panel', { dataset: group.name });
+    const panel = this._createEl('div', 'provider-group run-tab-panel', { 'data-tab': group.name });
     const header = this._createEl('div', 'provider-group-header');
     header.appendChild(this._createEl('span', null, { text: group.displayName }));
     header.appendChild(this._createEl('span', 'provider-key-status valid', { text: `${group.models.length} models` }));
@@ -195,7 +202,7 @@ const Models = {
   },
 
   _createRecentsGroup(recents) {
-    const panel = this._createEl('div', 'provider-group run-tab-panel', { dataset: 'recents' });
+    const panel = this._createEl('div', 'provider-group run-tab-panel', { 'data-tab': 'recents' });
     const header = this._createEl('div', 'provider-group-header');
     header.appendChild(this._createEl('span', null, { text: 'Recently Used' }));
     panel.appendChild(header);

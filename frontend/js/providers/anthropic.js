@@ -2,6 +2,7 @@ const AnthropicProvider = {
   name: 'anthropic',
   displayName: 'Anthropic',
   apiKeyField: 'anthropic',
+  keyPlaceholder: 'sk-ant-...',
   baseUrl: 'https://api.anthropic.com/v1',
 
   models: [
