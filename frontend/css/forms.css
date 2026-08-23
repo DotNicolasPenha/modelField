@@ -129,6 +129,7 @@ select.input {
 .custom-select-search-input:focus {
   border:1px solid var(--border);
   background: var(--bg);
+  background-color: red;
 }
 
 .custom-select-search-input::placeholder {
