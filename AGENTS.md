@@ -68,6 +68,16 @@ Frontend
 └── js/
     ├── app.js
     │   └── global state + initialization + persistence bridge
+    ├── agent/
+    │   └── agent-loop.js
+    │       └── agentic request/tool loop shared by Run and Chat
+    ├── utils/
+    │   ├── text-tools.js
+    │   │   └── text tool-call parsing/sanitizing (pure)
+    │   ├── path-guard.js
+    │   │   └── project path resolution/sandboxing (pure)
+    │   └── prompt-builder.js
+    │       └── system prompt assembly (pure)
     ├── editor.js
     │   └── markdown editor
     ├── files.js
@@ -75,23 +85,35 @@ Frontend
     ├── file-browser.js
     │   └── file browsing behavior
     ├── file-explorer.js
-    │   └── file explorer behavior
+    │   └── context selection behavior
     ├── panels.js
     │   └── sidebar resize behavior
     ├── models.js
-    │   └── models + execution + metrics + history
+    │   └── model catalog + run lifecycle + metrics
+    ├── chat/
+    │   └── chat-ui.js
+    │       └── chat rendering/interaction (mixes into Models)
+    ├── history/
+    │   └── history-ui.js
+    │       └── run history list + replay (mixes into Models)
+    ├── settings.js
+    │   └── API key management modal
     ├── projects.js
     │   └── project management
     ├── checklist.js
     │   └── project checklist
     ├── modals.js
-    │   └── modal + select primitives
+    │   └── modal + custom select primitives
     ├── notifications.js
     │   └── toast notifications
     ├── search.js
     │   └── search behavior
-    └── templates.js
-        └── static spec templates
+    └── providers/
+        ├── base.js
+        │   └── provider registry, tool contract, HTTP retry, tools execution
+        └── *.js
+            └── one file per API dialect (openai, anthropic, google,
+                openrouter, nvidia, opencode)
 ```
 
 ---
@@ -122,14 +144,21 @@ Use this map before opening files.
 | Panels resize            | `frontend/js/panels.js`                 |
 | Search                   | `frontend/js/search.js`                 |
 | Models/runs              | `frontend/js/models.js`                 |
+| Chat UI                  | `frontend/js/chat/chat-ui.js`           |
+| Run history              | `frontend/js/history/history-ui.js`     |
+| Agentic loop/tools       | `frontend/js/agent/agent-loop.js`       |
+| System prompt            | `frontend/js/utils/prompt-builder.js`   |
+| Tool-call parsing        | `frontend/js/utils/text-tools.js`       |
+| Path sandboxing          | `frontend/js/utils/path-guard.js`       |
+| Settings/API keys        | `frontend/js/settings.js`               |
 | Projects                 | `frontend/js/projects.js`               |
 | Checklist                | `frontend/js/checklist.js`              |
 | Modals/selects           | `frontend/js/modals.js`                 |
 | Notifications            | `frontend/js/notifications.js`          |
-| Templates                | `frontend/js/templates.js`              |
 | Backend/API              | `app.go`                                |
 | Wails bootstrap          | `main.go`                               |
 | Build/release            | `Makefile`, `build.sh`, `Dockerfile`    |
+| Frontend tests           | `tests/`, run with `npm test`           |
 
 Only inspect secondary files when the primary module depends on them.
 
@@ -197,17 +226,20 @@ When Wails is unavailable, frontend persistence falls back to `localStorage`.
 ## Module Boundaries
 
 * `app.js` → global state, initialization, persistence bridge
+* `agent/agent-loop.js` → agentic request/tool loop (Run + Chat)
+* `utils/*` → pure logic: prompt assembly, tool-call parsing, path sandboxing
 * `editor.js` → editor behavior
 * `files.js` → file behavior
 * `file-browser.js` → browser behavior
 * `file-explorer.js` → explorer behavior
 * `search.js` → search behavior
 * `projects.js` → project behavior
-* `models.js` → model/run behavior
+* `models.js` → model catalog, run lifecycle, metrics
+* `chat/chat-ui.js`, `history/history-ui.js` → UI mixins into Models
+* `settings.js` → API key management
 * `checklist.js` → checklist behavior
 * `modals.js` → reusable modal/select primitives
 * `notifications.js` → notifications
-* `templates.js` → static templates
 
 Keep feature-specific logic inside its responsible module.
 
@@ -281,6 +313,7 @@ make
 make docker
 make build-windows
 make release VERSION=x.y.z
+npm test
 ```
 
 `Makefile` is authoritative for build behavior.
