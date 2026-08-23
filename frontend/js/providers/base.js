@@ -290,32 +290,13 @@ const ProviderBase = {
   _resolvePath(argsPath) {
     const project = App.state.projects.find(p => p.id === App.state.currentProject);
     const projectPath = project ? (project.path || '') : '';
-    if (!projectPath) return argsPath;
-
-    let path = argsPath || '';
-    if (!path) return projectPath;
-
-    path = path.replace(/\\/g, '/');
-    const normalized = projectPath.replace(/\\/g, '/');
-
-    if (path.startsWith('/')) {
-      if (path.startsWith(normalized)) return path;
-      return normalized + path;
-    }
-
-    if (path === '.' || path === './') return normalized;
-
-    return normalized + '/' + path;
+    return PathGuard.resolveProjectPath(projectPath, argsPath);
   },
 
   _isPathSafe(resolvedPath) {
     const project = App.state.projects.find(p => p.id === App.state.currentProject);
     const projectPath = project ? (project.path || '') : '';
-    if (!projectPath) return true;
-
-    const normalized = resolvedPath.replace(/\\/g, '/');
-    const base = projectPath.replace(/\\/g, '/');
-    return normalized.startsWith(base);
+    return PathGuard.isPathInsideProject(projectPath, resolvedPath);
   },
 
   async executeTool(name, args) {
