@@ -2,6 +2,22 @@ const ProviderBase = {
   _providers: {},
   _cache: {},
 
+  // Provider contract:
+  //   name, displayName, apiKeyField, baseUrl, models[]
+  //   needsProxy          → route HTTP through Go backend (CORS)
+  //   toolDialect         → 'openai' (default) | 'anthropic' | 'google'
+  //   validateKey(k)      → {valid, error?}
+  //   fetchModels(k)      → [{id, name?, description?}]
+  //   buildHeaders(k)     → headers object
+  //   getUrl(modelId, k)  → endpoint URL (google only)
+  //   buildBody(model, messages, systemPrompt, options)
+  //                       → request body; tools are guaranteed by
+  //                         ProviderBase.buildBody wrapper via toolDialect,
+  //                         so buildBody implementations may ignore options.tools
+  //   parseResponse(data) → {content, toolCalls[{id,name,arguments}], inputTokens, outputTokens}
+  //   buildMessages(systemPrompt, userPrompt)         → messages for Run
+  //   buildChatMessages(systemPrompt, history, msg)   → messages for Chat
+
   register(name, provider) {
     this._providers[name] = provider;
   },
@@ -67,6 +83,50 @@ const ProviderBase = {
 
   get(name) {
     return this._providers[name] || null;
+  },
+
+  // ── Tool contract ────────────────────────────────────────────────
+  // Providers declare `toolDialect` ('openai' default | 'anthropic' | 'google').
+  // This wrapper guarantees that requested tools reach the wire regardless
+  // of the provider's own buildBody implementation.
+  buildBody(provider, model, messages, systemPrompt, options = {}) {
+    const body = provider.buildBody(model, messages, systemPrompt, options);
+    if (options.tools && options.tools.length > 0 && body.tools === undefined) {
+      console.warn(`Provider "${provider.name}" dropped tools from its body; injecting via dialect.`);
+      this.applyTools(body, options.tools, provider.toolDialect || 'openai');
+    }
+    return body;
+  },
+
+  applyTools(body, tools, dialect) {
+    if (!tools || tools.length === 0) return body;
+    if (dialect === 'google') {
+      body.tools = [{
+        functionDeclarations: tools.map(t => ({
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters
+        }))
+      }];
+    } else if (dialect === 'anthropic') {
+      body.tools = tools.map(t => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.parameters
+      }));
+      body.tool_choice = { type: 'auto' };
+    } else {
+      body.tools = tools.map(t => ({
+        type: 'function',
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters
+        }
+      }));
+      body.tool_choice = 'auto';
+    }
+    return body;
   },
 
   getAll() {

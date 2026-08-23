@@ -32,7 +32,7 @@ const AgentLoop = {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       iterations++;
 
-      const body = provider.buildBody(model, currentMessages, systemPrompt, {
+      const body = ProviderBase.buildBody(provider, model, currentMessages, systemPrompt, {
         tools: toolsEnabled ? tools : undefined
       });
 

@@ -63,17 +63,6 @@ const OpenAIProvider = {
       temperature: options.temperature ?? 0.7,
       max_tokens: options.maxTokens ?? 4096
     };
-    if (options.tools) {
-      body.tools = options.tools.map(t => ({
-        type: 'function',
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.parameters
-        }
-      }));
-      body.tool_choice = options.toolChoice || 'auto';
-    }
     return body;
   },
 

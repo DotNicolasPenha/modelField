@@ -51,6 +51,8 @@ const GoogleProvider = {
     return `${this.baseUrl}/models/${modelId}:generateContent?key=${apiKey}`;
   },
 
+  toolDialect: 'google',
+
   buildBody(model, messages, systemPrompt, options = {}) {
     const contents = messages.map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
@@ -61,16 +63,6 @@ const GoogleProvider = {
 
     if (systemPrompt) {
       body.systemInstruction = { parts: [{ text: systemPrompt }] };
-    }
-
-    if (options.tools) {
-      body.tools = [{
-        functionDeclarations: options.tools.map(t => ({
-          name: t.name,
-          description: t.description,
-          parameters: t.parameters
-        }))
-      }];
     }
 
     return body;
