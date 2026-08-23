@@ -76,6 +76,8 @@ Frontend
     │   └── file browsing behavior
     ├── file-explorer.js
     │   └── file explorer behavior
+    ├── panels.js
+    │   └── sidebar resize behavior
     ├── models.js
     │   └── models + execution + metrics + history
     ├── projects.js
@@ -117,6 +119,7 @@ Use this map before opening files.
 | Files                    | `frontend/js/files.js`                  |
 | File browser             | `frontend/js/file-browser.js`           |
 | File explorer            | `frontend/js/file-explorer.js`          |
+| Panels resize            | `frontend/js/panels.js`                 |
 | Search                   | `frontend/js/search.js`                 |
 | Models/runs              | `frontend/js/models.js`                 |
 | Projects                 | `frontend/js/projects.js`               |
@@ -229,6 +232,8 @@ Do not move unrelated logic into `app.js`.
 ---
 
 ## Styling
+
+UI/motion design spec: `DESIGN_SPEC.md` (read before UI/visual changes).
 
 Design tokens:
 

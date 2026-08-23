@@ -60,7 +60,7 @@ const API = {
       throw new Error(`API key not configured for ${provider.displayName}. Go to Settings to add it.`);
     }
 
-    const systemPrompt = this.buildSystemPrompt(context);
+    const systemPrompt = this.buildSystemPrompt(context, !model._toolsUnsupported);
     const tools = ProviderBase.defineTools();
     const startTime = Date.now();
     let totalInputTokens = 0;
@@ -89,7 +89,7 @@ const API = {
         tools: toolsEnabled ? tools : undefined
       });
 
-      const response = await ProviderBase.http(provider.name, url, {
+      const response = await ProviderBase.httpWithRetry(provider.name, url, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(body),
@@ -117,52 +117,16 @@ const API = {
         finalContent = parsed.content;
       }
 
-      if (!parsed.toolCalls || parsed.toolCalls.length === 0) {
+      let roundToolCalls = (parsed.toolCalls && parsed.toolCalls.length > 0)
+        ? parsed.toolCalls
+        : (toolsEnabled ? this._parseTextToolCalls(finalContent) : []);
+
+      if (!toolsEnabled || roundToolCalls.length === 0) {
+        finalContent = this.stripToolSyntax(finalContent);
         break;
       }
 
-      if (!toolsEnabled) {
-        break;
-      }
-
-      for (const toolCall of parsed.toolCalls) {
-        if (onToolCall) {
-          onToolCall({ type: 'call', name: toolCall.name, arguments: toolCall.arguments });
-        }
-
-        const result = await ProviderBase.executeTool(toolCall.name, toolCall.arguments);
-
-        toolHistory.push({
-          toolCallId: toolCall.id,
-          toolName: toolCall.name,
-          arguments: toolCall.arguments,
-          result: result
-        });
-
-        if (onToolCall) {
-          onToolCall({ type: 'result', name: toolCall.name, result: result });
-        }
-      }
-
-      const assistantMsg = {
-        role: 'assistant',
-        content: finalContent || '',
-        tool_calls: parsed.toolCalls.map(tc => ({
-          id: tc.id,
-          type: 'function',
-          function: { name: tc.name, arguments: JSON.stringify(tc.arguments) }
-        }))
-      };
-      currentMessages.push(assistantMsg);
-
-      for (const toolCall of parsed.toolCalls) {
-        const toolResult = toolHistory.find(t => t.toolCallId === toolCall.id);
-        currentMessages.push({
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content: toolResult ? toolResult.result : ''
-        });
-      }
+      await this._runToolRound(roundToolCalls, this.stripToolSyntax(finalContent), currentMessages, toolHistory, onToolCall);
     }
 
     const duration = (Date.now() - startTime) / 1000;
@@ -198,7 +162,7 @@ const API = {
       throw new Error(`API key not configured for ${provider.displayName}. Go to Settings to add it.`);
     }
 
-    const systemPrompt = this.buildSystemPrompt(context);
+    const systemPrompt = this.buildSystemPrompt(context, !model._toolsUnsupported);
     const tools = ProviderBase.defineTools();
     const startTime = Date.now();
     let totalInputTokens = 0;
@@ -232,7 +196,7 @@ const API = {
         tools: toolsEnabled ? tools : undefined
       });
 
-      const response = await ProviderBase.http(provider.name, url, {
+      const response = await ProviderBase.httpWithRetry(provider.name, url, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(body),
@@ -260,52 +224,16 @@ const API = {
         finalContent = parsed.content;
       }
 
-      if (!parsed.toolCalls || parsed.toolCalls.length === 0) {
+      let roundToolCalls = (parsed.toolCalls && parsed.toolCalls.length > 0)
+        ? parsed.toolCalls
+        : (toolsEnabled ? this._parseTextToolCalls(finalContent) : []);
+
+      if (!toolsEnabled || roundToolCalls.length === 0) {
+        finalContent = this.stripToolSyntax(finalContent);
         break;
       }
 
-      if (!toolsEnabled) {
-        break;
-      }
-
-      for (const toolCall of parsed.toolCalls) {
-        if (onToolCall) {
-          onToolCall({ type: 'call', name: toolCall.name, arguments: toolCall.arguments });
-        }
-
-        const result = await ProviderBase.executeTool(toolCall.name, toolCall.arguments);
-
-        toolHistory.push({
-          toolCallId: toolCall.id,
-          toolName: toolCall.name,
-          arguments: toolCall.arguments,
-          result: result
-        });
-
-        if (onToolCall) {
-          onToolCall({ type: 'result', name: toolCall.name, result: result });
-        }
-      }
-
-      const assistantMsg = {
-        role: 'assistant',
-        content: finalContent || '',
-        tool_calls: parsed.toolCalls.map(tc => ({
-          id: tc.id,
-          type: 'function',
-          function: { name: tc.name, arguments: JSON.stringify(tc.arguments) }
-        }))
-      };
-      currentMessages.push(assistantMsg);
-
-      for (const toolCall of parsed.toolCalls) {
-        const toolResult = toolHistory.find(t => t.toolCallId === toolCall.id);
-        currentMessages.push({
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content: toolResult ? toolResult.result : ''
-        });
-      }
+      await this._runToolRound(roundToolCalls, this.stripToolSyntax(finalContent), currentMessages, toolHistory, onToolCall);
     }
 
     const duration = (Date.now() - startTime) / 1000;
@@ -330,18 +258,17 @@ const API = {
     };
   },
 
-  buildSystemPrompt(context) {
-    let systemPrompt = `You are a spec-driven engineering assistant. Think before acting.
+  buildSystemPrompt(context, toolsSupported = true) {
+    let systemPrompt = `You are an engineering assistant. Think before acting.
 
 ## Core Rules
 - Analyze context before proposing solutions
 - When context is insufficient, ask specific questions — never assume
-- Adapt behavior to the content: if specs look like architecture docs, act as architect; if they look like user stories, act as analyst
 - Use tools to read before writing — understand the current state first
 - Be direct, skip pleasantries, no emojis
 
 ## Decision Framework
-1. Read relevant files first (list_dir → read_spec → read_file)
+1. Read relevant files first (list_dir → read_file)
 2. If context is clear → execute
 3. If context is ambiguous → ask 1-2 focused questions
 4. If context is missing → ask what's needed, suggest what to create
@@ -354,15 +281,29 @@ const API = {
 - If user request is vague, ask 1 specific question before acting
 
 ## Tool Usage
-- Prefer read_spec + read_file to understand before modifying
-- Batch related changes in one write_spec call
+- Prefer read_file to understand before modifying
+- Batch related changes in one write_file call
 - Never ask the user to create/edit files — do it yourself
 - Use list_dir to discover structure before assuming paths
 
 ## Output
-- Markdown for specs, plain text for code
+- Markdown for documents, plain text for code
 - Be concise — every token costs money
 - Structure: context → analysis → action`;
+
+    if (toolsSupported) {
+      systemPrompt += `\n\n## Agency Contract
+- Tools are invoked through native function calling ONLY.
+- This application executes the tools for you automatically. You never execute them yourself, and the user is NOT your execution harness.
+- NEVER write tool invocations as text in your reply — no <tool_call> tags, no XML, no JSON blocks describing tool use. The user sees exactly what you write.
+- To use a tool, issue the native function call and stop. Wait for the tool result before continuing.`;
+    } else {
+      systemPrompt += `\n\n## Agency Contract
+- This environment has NO tools available. Nothing you write will be executed.
+- Work only with the context already provided below.
+- Never pretend to read or write files. Never output tool syntax.
+- Deliver full code and instructions directly in your response.`;
+    }
 
     const project = App.state.projects.find(p => p.id === App.state.currentProject);
     if (project && project.path) {
@@ -396,19 +337,100 @@ const API = {
     if (context && context.length > 0) {
       systemPrompt += '\n\n## Selected Context\n';
       for (const item of context) {
-        if (item.type === 'spec' && item.content) {
+        if (item.type === 'folder') {
+          systemPrompt += `\n### Directory: ${item.name}\nPath: ${item.path}\nThis is a directory, not a file. Its contents are NOT included here — use the list_dir and read_file tools on this path to inspect it.\n`;
+        } else if (item.content) {
           systemPrompt += `\n### ${item.name}\n\`\`\`\n${item.content}\n\`\`\`\n`;
-        } else if (item.type === 'file') {
-          if (item.content) {
-            systemPrompt += `\n### File: ${item.name}\n\`\`\`\n${item.content}\n\`\`\`\n`;
-          } else {
-            systemPrompt += `\n### File: ${item.name}\n`;
-          }
+        } else if (item.path) {
+          systemPrompt += `\n### File: ${item.name}\nPath: ${item.path}\nContent not loaded. Use the read_file tool on this path if you need its contents.\n`;
+        } else {
+          systemPrompt += `\n### File: ${item.name}\n`;
         }
       }
     }
 
     return systemPrompt;
+  },
+
+  _parseTextToolCalls(content) {
+    if (!content || typeof content !== 'string') return [];
+    const calls = [];
+    const re = /<tool_call>([\s\S]*?)<\/tool_call>/gi;
+    let m;
+    while ((m = re.exec(content)) !== null) {
+      const parsed = this._parseToolCallPayload(m[1]);
+      if (parsed) {
+        calls.push({ id: `text_${Date.now()}_${calls.length}`, ...parsed });
+      }
+    }
+    return calls;
+  },
+
+  _parseToolCallPayload(raw) {
+    try {
+      let text = raw.trim();
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start === -1 || end === -1 || end <= start) return null;
+      text = text.slice(start, end + 1);
+      const obj = JSON.parse(text);
+      const name = obj.name || (obj.function && obj.function.name);
+      let args = obj.arguments ?? obj.parameters ?? (obj.function && obj.function.arguments);
+      if (typeof args === 'string') {
+        try { args = JSON.parse(args); } catch (e) { /* keep as string */ }
+      }
+      if (!name) return null;
+      return { name, arguments: args && typeof args === 'object' ? args : {} };
+    } catch (e) {
+      return null;
+    }
+  },
+
+  stripToolSyntax(content) {
+    if (!content) return '';
+    return content
+      .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
+      .replace(/<tool_call>[\s\S]*$/i, '')
+      .replace(/<\/?(?:tool_call|function_call|function|invoke)[^>]*>/gi, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  },
+
+  async _runToolRound(toolCalls, assistantContent, currentMessages, toolHistory, onToolCall) {
+    currentMessages.push({
+      role: 'assistant',
+      content: assistantContent || '',
+      tool_calls: toolCalls.map(tc => ({
+        id: tc.id,
+        type: 'function',
+        function: { name: tc.name, arguments: JSON.stringify(tc.arguments) }
+      }))
+    });
+
+    for (const toolCall of toolCalls) {
+      if (onToolCall) {
+        onToolCall({ type: 'call', name: toolCall.name, arguments: toolCall.arguments });
+      }
+
+      const result = await ProviderBase.executeTool(toolCall.name, toolCall.arguments);
+
+      toolHistory.push({
+        toolCallId: toolCall.id,
+        toolName: toolCall.name,
+        arguments: toolCall.arguments,
+        result: result
+      });
+
+      if (onToolCall) {
+        onToolCall({ type: 'result', name: toolCall.name, result: result });
+      }
+
+      currentMessages.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: result
+      });
+    }
   },
 
   _handleError(status, errorData, providerName) {

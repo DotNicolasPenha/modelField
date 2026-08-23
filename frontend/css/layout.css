@@ -125,6 +125,7 @@
 .left-sidebar,
 .right-sidebar {
   flex: 3;
+  min-width: 180px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -137,4 +138,31 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* ── Panel Resizers ── */
+
+.panel-resizer {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+  z-index: 1;
+}
+
+.panel-resizer::before {
+  content: '';
+  position: absolute;
+  inset: 0 2px;
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.panel-resizer:hover::before {
+  background: var(--overlay-active);
+}
+
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
 }

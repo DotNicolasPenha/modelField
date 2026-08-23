@@ -13,8 +13,10 @@
   justify-content: space-between;
   padding: var(--space-3) var(--space-4);
   font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   flex-shrink: 0;
 }
 
@@ -34,7 +36,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-4);
+  padding: var(--space-7) var(--space-4);
   color: var(--text-tertiary);
   font-size: var(--font-size-sm);
 }
@@ -42,12 +44,13 @@
 /* ── Checklist Item ── */
 
 .checklist-item {
-  border-radius: var(--radius-md);
-  transition: background var(--duration-fast) var(--ease);
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) var(--ease),
+              transform var(--duration-fast) var(--ease);
 }
 
 .checklist-item.entering {
-  animation: checklistEnter var(--duration-normal) var(--ease-spring) forwards;
+  animation: checklistEnter var(--duration-normal) var(--ease-emphasized) forwards;
 }
 
 .checklist-item.exiting {
@@ -66,7 +69,7 @@
 
 .checklist-item:hover {
   background: var(--overlay-hover);
-  transform: translateY(-1px);
+  transform: translateX(-5px);
 }
 
 .checklist-item-row {
@@ -184,7 +187,7 @@
   height: 20px;
   border-radius: var(--radius-sm);
   border: none;
-  background: wheight;
+  background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
   opacity: 0;
@@ -207,7 +210,7 @@
 }
 
 .checklist-item-delete:hover {
-  color: #e74c3c;
+  color: var(--danger);
 }
 
 .checklist-item.expanded .checklist-item-expand svg {
@@ -226,13 +229,13 @@
   grid-template-rows: 0fr;
   opacity: 0;
   padding: 0 var(--space-2) 0 28px;
-  transition: grid-template-rows var(--duration-medium) var(--ease-emphasized), opacity var(--duration-medium) var(--ease-emphasized), padding var(--duration-medium) var(--ease-emphasized);
+  transition: grid-template-rows var(--duration-medium) var(--ease-emphasized),
+              opacity var(--duration-medium) var(--ease-emphasized);
 }
 
 .checklist-item.expanded .checklist-item-desc-area {
   grid-template-rows: 1fr;
   opacity: 1;
-  padding: 0 var(--space-2) var(--space-2) 28px;
 }
 
 .checklist-item-desc-area > * {
@@ -241,6 +244,7 @@
 
 .checklist-item-desc {
   width: 100%;
+  margin-bottom: var(--space-2);
   padding: var(--space-2);
   font-size: var(--font-size-xs);
   font-family: inherit;
@@ -251,7 +255,7 @@
   color: var(--text-primary);
   font-weight: 200;
   resize: vertical;
-  outline: wheight;
+  outline: none;
   transition: border-color var(--duration-normal) var(--ease);
 }
 
@@ -277,7 +281,7 @@
   font-size: var(--font-size-sm);
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
-  background: wheight;
+  background: transparent;
   color: var(--text-primary);
   outline: none;
   transition: border-color var(--duration-normal) var(--ease);

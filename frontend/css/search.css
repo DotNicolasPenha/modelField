@@ -9,7 +9,7 @@
   background: var(--overlay);
   border-radius: var(--search-radius);
   border: 1px solid var(--border-subtle);
-  transition: width var(--duration-normal) var(--ease-enter),
+  transition: width var(--duration-medium) var(--ease-spring),
               background var(--duration-fast) var(--ease),
               border-color var(--duration-fast) var(--ease),
               box-shadow var(--duration-fast) var(--ease);

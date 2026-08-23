@@ -192,6 +192,13 @@
   gap: var(--space-4);
 }
 
+#usage-summary {
+  font-variant-numeric: tabular-nums;
+ display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 .empty-state {
   flex: 1;
   display: flex;

@@ -21,6 +21,7 @@ const ProviderBase = {
       return {
         ok: resp.status >= 200 && resp.status < 300,
         status: resp.status,
+        headers: resp.headers || {},
         json: async () => JSON.parse(resp.body),
         text: async () => resp.body
       };
@@ -31,6 +32,37 @@ const ProviderBase = {
       body: options.body || undefined,
       signal: options.signal
     });
+  },
+
+  _retryAfterSeconds(response) {
+    const raw = response.headers && (response.headers['retry-after'] ?? response.headers['x-ratelimit-reset']);
+    const secs = Number(raw);
+    if (Number.isFinite(secs) && secs > 0 && secs <= 120) return secs;
+    return null;
+  },
+
+  // Retries transient failures (429/5xx) with exponential backoff,
+  // honoring the server's Retry-After header when present.
+  async httpWithRetry(name, url, options = {}, maxRetries = 3) {
+    let retryAfterMs = null;
+    for (let attempt = 0; ; attempt++) {
+      if (attempt > 0) {
+        const delayMs = retryAfterMs ?? Math.min(8000, 1000 * Math.pow(2, attempt - 1));
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        retryAfterMs = null;
+      }
+      if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const response = await this.http(name, url, options);
+      if (response.ok) return response;
+
+      const transient = response.status === 429 || response.status >= 500;
+      if (transient && attempt < maxRetries) {
+        const ra = this._retryAfterSeconds(response);
+        if (ra !== null) retryAfterMs = ra * 1000;
+        continue;
+      }
+      return response;
+    }
   },
 
   get(name) {
@@ -219,57 +251,6 @@ const ProviderBase = {
   defineTools() {
     return [
       {
-        name: 'read_spec',
-        description: 'Read a spec file',
-        parameters: {
-          type: 'object',
-          properties: {
-            spec_name: { type: 'string', description: 'Spec name without .md' }
-          },
-          required: ['spec_name']
-        }
-      },
-      {
-        name: 'write_spec',
-        description: 'Create or update a spec file',
-        parameters: {
-          type: 'object',
-          properties: {
-            spec_name: { type: 'string', description: 'Spec name without .md' },
-            content: { type: 'string', description: 'Markdown content' }
-          },
-          required: ['spec_name', 'content']
-        }
-      },
-      {
-        name: 'rename_spec',
-        description: 'Rename a spec file',
-        parameters: {
-          type: 'object',
-          properties: {
-            old_name: { type: 'string', description: 'Current name without .md' },
-            new_name: { type: 'string', description: 'New name without .md' }
-          },
-          required: ['old_name', 'new_name']
-        }
-      },
-      {
-        name: 'delete_spec',
-        description: 'Delete a spec file',
-        parameters: {
-          type: 'object',
-          properties: {
-            spec_name: { type: 'string', description: 'Spec name without .md' }
-          },
-          required: ['spec_name']
-        }
-      },
-      {
-        name: 'list_specs',
-        description: 'List all specs in the project',
-        parameters: { type: 'object', properties: {} }
-      },
-      {
         name: 'read_file',
         description: 'Read a file from disk',
         parameters: {
@@ -339,51 +320,6 @@ const ProviderBase = {
 
   async executeTool(name, args) {
     switch (name) {
-      case 'read_spec': {
-        const file = App.state.files.find(f => f.name === args.spec_name && !f.trashed);
-        return file ? file.content : `Error: spec "${args.spec_name}" not found`;
-      }
-      case 'write_spec': {
-        let target = App.state.files.find(f => f.name === args.spec_name && !f.trashed);
-        if (target) {
-          target.content = args.content;
-          target.modified = new Date().toISOString();
-        } else {
-          App.state.files.push({
-            id: Date.now().toString(),
-            projectId: App.state.currentProject,
-            name: args.spec_name,
-            content: args.content,
-            created: new Date().toISOString(),
-            modified: new Date().toISOString(),
-            trashed: false
-          });
-        }
-        await App.saveState();
-        return `Successfully ${target ? 'updated' : 'created'} spec "${args.spec_name}"`;
-      }
-      case 'rename_spec': {
-        const file = App.state.files.find(f => f.name === args.old_name && !f.trashed);
-        if (!file) return `Error: spec "${args.old_name}" not found`;
-        const exists = App.state.files.find(f => f.name === args.new_name && !f.trashed);
-        if (exists) return `Error: spec "${args.new_name}" already exists`;
-        file.name = args.new_name;
-        file.modified = new Date().toISOString();
-        await App.saveState();
-        return `Successfully renamed "${args.old_name}" to "${args.new_name}"`;
-      }
-      case 'delete_spec': {
-        const file = App.state.files.find(f => f.name === args.spec_name && !f.trashed);
-        if (!file) return `Error: spec "${args.spec_name}" not found`;
-        file.trashed = true;
-        file.trashedAt = new Date().toISOString();
-        await App.saveState();
-        return `Successfully moved "${args.spec_name}" to trash`;
-      }
-      case 'list_specs': {
-        const specs = App.getProjectFiles().map(f => f.name);
-        return JSON.stringify(specs);
-      }
       case 'read_file': {
         if (App.isWails) {
           try {

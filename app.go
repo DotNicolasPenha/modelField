@@ -363,7 +363,8 @@ func (a *App) GetFileInfo(path string) FileInfo {
 
 type HTTPResponse struct {
 	Status int    `json:"status"`
-	Body   string `json:"body"`
+	Body   string            `json:"body"`
+	Headers map[string]string `json:"headers"`
 }
 
 // HTTPFetch proxies HTTP requests from the frontend, bypassing webview CORS restrictions.
@@ -382,6 +383,9 @@ func (a *App) HTTPFetch(method string, url string, headers map[string]string, bo
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", "ModelField/1.0")
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -393,6 +397,12 @@ func (a *App) HTTPFetch(method string, url string, headers map[string]string, bo
 	if err != nil {
 		return HTTPResponse{}, err
 	}
-	return HTTPResponse{Status: resp.StatusCode, Body: string(data)}, nil
+
+	respHeaders := make(map[string]string)
+	for key := range resp.Header {
+		respHeaders[strings.ToLower(key)] = resp.Header.Get(key)
+	}
+
+	return HTTPResponse{Status: resp.StatusCode, Body: string(data), Headers: respHeaders}, nil
 }
 

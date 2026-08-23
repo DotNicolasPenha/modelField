@@ -12,6 +12,7 @@
   opacity: 0;
   visibility: hidden;
   transform: scale(0.95);
+  transform-origin: top left;
   transition: opacity var(--duration-fast) var(--ease), visibility var(--duration-fast), transform var(--duration-fast) var(--ease-spring);
   box-shadow: var(--shadow-lg);
 }
@@ -20,6 +21,52 @@
   opacity: 1;
   visibility: visible;
   transform: scale(1);
+  animation: contextMenuEnter 300ms var(--ease-spring) both;
+}
+
+@keyframes contextMenuEnter {
+  0% {
+    opacity: 0;
+    transform: perspective(900px) scale(0.88) rotateX(6deg);
+    box-shadow: var(--shadow-none);
+    filter: blur(4px);
+  }
+  60% {
+    opacity: 1;
+    transform: perspective(900px) scale(1.02) rotateX(-0.5deg);
+    box-shadow: var(--shadow-xl);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(900px) scale(1) rotateX(0deg);
+    box-shadow: var(--shadow-lg);
+    filter: blur(0);
+  }
+}
+
+.context-menu-item {
+  opacity: 0;
+}
+
+.context-menu.active .context-menu-item {
+  animation: contextMenuItemIn 240ms var(--ease-emphasized) both;
+}
+
+.context-menu.active .context-menu-item:nth-child(1) { animation-delay: 40ms; }
+.context-menu.active .context-menu-item:nth-child(2) { animation-delay: 70ms; }
+.context-menu.active .context-menu-item:nth-child(3) { animation-delay: 100ms; }
+.context-menu.active .context-menu-item:nth-child(n+4) { animation-delay: 120ms; }
+
+@keyframes contextMenuItemIn {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .context-menu-item {

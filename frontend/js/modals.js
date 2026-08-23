@@ -73,9 +73,8 @@ const CustomSelect = {
 
     const rect = trigger.getBoundingClientRect();
 
-    dropdown.style.top = (rect.bottom + 4) + 'px';
-    dropdown.style.left = rect.left + 'px';
     dropdown.style.width = rect.width + 'px';
+    Modals.positionPopover(dropdown, rect.left, rect.bottom, 4);
 
     el.classList.add('open');
     dropdown.classList.add('active');
@@ -121,6 +120,23 @@ const CustomSelect = {
 };
 
 const Modals = {
+  positionPopover(el, x, y, gap = 0) {
+    el.style.left = '0px';
+    el.style.top = '0px';
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    let left = x;
+    let top = y + gap;
+    if (left + rect.width > window.innerWidth - margin) {
+      left = Math.max(margin, window.innerWidth - rect.width - margin);
+    }
+    if (top + rect.height > window.innerHeight - margin) {
+      top = Math.max(margin, y - rect.height - gap);
+    }
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+  },
+
   init() {
     document.querySelectorAll('.modal-close').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -169,12 +185,6 @@ const Modals = {
       if (e.key === 'Enter') this.sendChatMessage();
     });
 
-    // Initialize custom select
-    const templateSelect = document.getElementById('select-template');
-    if (templateSelect) {
-      CustomSelect.init(templateSelect);
-    }
-
     document.getElementById('btn-clear-context')?.addEventListener('click', () => {
       FileExplorer.clearAll();
     });
@@ -213,6 +223,7 @@ const Modals = {
   open(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
+      modal.classList.remove('closing');
       modal.classList.add('active');
       const firstInput = modal.querySelector('input:not([type="hidden"])');
       if (firstInput) setTimeout(() => firstInput.focus(), 100);
@@ -221,7 +232,22 @@ const Modals = {
 
   close(modalId) {
     const modal = document.getElementById(modalId);
-    if (modal) modal.classList.remove('active');
+    if (!modal || !modal.classList.contains('active') || modal.classList.contains('closing')) return;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      modal.classList.remove('active');
+      return;
+    }
+
+    modal.classList.add('closing');
+    const finish = () => modal.classList.remove('active', 'closing');
+
+    const surface = modal.querySelector('.modal');
+    const timeout = setTimeout(finish, 420);
+    surface?.addEventListener('animationend', () => {
+      clearTimeout(timeout);
+      finish();
+    }, { once: true });
   },
 
   _renderApiKeyRows() {

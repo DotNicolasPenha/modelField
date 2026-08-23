@@ -54,12 +54,71 @@
   font-size: var(--font-size-lg);
   width: 100%;
   transition: background var(--duration-normal) var(--ease);
-  border: 1px solid transparent;
+  /*border: 1px solid transparent;*/
 }
 
 .input:focus {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  box-shadow: 0 0 0 3px var(--overlay), var(--shadow-sm);
+}
+
+.textarea:focus {
   border-color: var(--border);
   background: var(--bg);
+  box-shadow: 0 0 0 3px var(--overlay), var(--shadow-sm);
+}
+
+/* ── Micro-interactions (shared reaction layer) ── */
+
+button {
+  transition:
+    transform var(--duration-fast) var(--ease),
+    background-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease),
+    opacity var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+button:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.file-browser-item:active,
+.model-item:active,
+.model-info-history-item:active,
+.search-item:active,
+.dropdown-item:active,
+.context-menu-item:active,
+.checklist-item-row:active {
+  background: var(--overlay-active);
+}
+
+.tab,
+.run-tab,
+.file-browser-tab {
+  transition:
+    transform var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+.tab:hover,
+.run-tab:hover,
+.file-browser-tab:hover {
+  transform: translateY(-1px);
+}
+
+.tab:active,
+.run-tab:active,
+.file-browser-tab:active {
+  transform: translateY(0) scale(0.97);
 }
 
 .input::placeholder {

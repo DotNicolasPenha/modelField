@@ -10,11 +10,11 @@ select.input {
 }
 
 .input.input-error {
-  border-color: #e74c3c;
+  border-color: var(--danger);
 }
 
 .input.input-error:focus {
-  border-color: #e74c3c;
+  border-color: var(--danger);
   background: var(--bg);
 }
 
@@ -127,7 +127,7 @@ select.input {
 }
 
 .custom-select-search-input:focus {
-  border-color: var(--border);
+  border:1px solid var(--border);
   background: var(--bg);
 }
 
@@ -325,7 +325,7 @@ select.input {
 
 .modal-prompt-error {
   font-size: var(--font-size-sm);
-  color: #e74c3c;
+  color: var(--danger);
   min-height: 18px;
   margin-top: var(--space-1);
 }

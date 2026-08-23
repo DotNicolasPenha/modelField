@@ -199,7 +199,7 @@
   height: 100%;
   background: var(--accent);
   border-radius: 2px;
-  transition: width 0.3s ease;
+  transition: width var(--duration-slow) var(--ease);
 }
 
 .chat-context-bar-fill.warning {
@@ -218,7 +218,7 @@
   padding: 2px;
   display: flex;
   align-items: center;
-  transition: transform 0.2s;
+  transition: transform var(--duration-normal) var(--ease);
 }
 
 .chat-context-toggle.open {

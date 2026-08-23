@@ -36,6 +36,7 @@ const Models = {
 
     this.timeInterval = setInterval(() => this.updateTimes(), 30000);
     this.render();
+    this.updateUsageSummary();
     this._fetchModelsOnStartup();
   },
 
@@ -90,6 +91,23 @@ const Models = {
     }
 
     return groups;
+  },
+
+  updateUsageSummary() {
+    const el = document.getElementById('usage-summary');
+    if (!el) return;
+    const today = new Date().toDateString();
+    const todays = (App.state.runHistory || []).filter(r =>
+      r.status === 'finished' && r.started && new Date(r.started).toDateString() === today
+    );
+    if (todays.length === 0) {
+      el.textContent = '';
+      return;
+    }
+    const tokens = todays.reduce((sum, r) => sum + (r.inputTokens || 0) + (r.outputTokens || 0), 0);
+    const cost = todays.reduce((sum, r) => sum + (r.cost || 0), 0);
+    el.textContent = `${this.formatTokens(tokens)} · ${this.formatCost(cost)} today`;
+    el.title = `${todays.length} run(s) today`;
   },
 
   timeAgo(dateString) {
@@ -213,6 +231,7 @@ const Models = {
   },
 
   showRunModal() {
+    FileExplorer.closePopover?.();
     const body = document.getElementById('modal-run-body');
     if (!body) return;
     body.innerHTML = '';
@@ -308,10 +327,15 @@ const Models = {
     const context = FileExplorer.getContext();
     if (contextList) {
       if (context.length === 0) {
-        contextList.innerHTML = '<div class="text-muted" style="font-size: 12px;">No context selected. Select specs or files from the sidebar.</div>';
+        contextList.innerHTML = '<div class="text-muted" style="font-size: 12px;">No context selected. Select files from the sidebar.</div>';
       } else {
+        const icons = {
+          spec: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+          file: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
+          folder: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+        };
         contextList.innerHTML = context.map(c =>
-          `<div class="run-context-item"><span class="run-context-item-icon">${c.type === 'spec' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>'}</span> ${c.name} <span class="run-context-badge">${c.type}</span></div>`
+          `<div class="run-context-item"><span class="run-context-item-icon">${icons[c.type] || icons.file}</span> ${c.name}${c.type === 'folder' ? '/' : ''} <span class="run-context-badge">${c.type}</span></div>`
         ).join('');
       }
     }
@@ -331,15 +355,10 @@ const Models = {
     if (!model) return;
 
     const context = FileExplorer.getContext();
-    const specs = context.filter(c => c.type === 'spec');
     const promptInput = document.getElementById('input-run-prompt');
     const prompt = promptInput ? promptInput.value.trim() : '';
     const errorEl = document.getElementById('run-validation-error');
 
-    if (specs.length === 0) {
-      if (errorEl) errorEl.textContent = 'Select at least one spec';
-      return;
-    }
     if (!prompt) {
       if (errorEl) errorEl.textContent = 'Write a prompt';
       return;
@@ -353,20 +372,20 @@ const Models = {
 
   getCurrentSpecName() {
     const file = App.state.files.find(f => f.id === App.state.activeFile);
-    return file ? file.name : 'spec';
+    return file ? file.name : 'untitled';
   },
 
   async executeRun(model, context, prompt) {
-    const specNames = context.filter(c => c.type === 'spec').map(c => c.name.replace(/\.md$/, ''));
+    const fileContextNames = context.filter(c => c.type !== 'folder').map(c => c.name.replace(/\.md$/, ''));
+    const folderCount = context.filter(c => c.type === 'folder').length;
     const filePaths = context.filter(c => c.type === 'file').map(c => c.path);
-    const specName = specNames[0] || 'spec';
 
     const run = {
       id: Date.now().toString(),
       model: model,
       context: context,
-      spec: specName,
-      specNames: specNames,
+      spec: fileContextNames[0] || '',
+      specNames: fileContextNames,
       filePaths: filePaths,
       prompt: prompt,
       status: 'running',
@@ -380,7 +399,9 @@ const Models = {
     this.running.push(run);
     this.render();
     App.updateCounts();
-    Notifications.show(`Running ${this.getDisplayName(model)} on ${specNames.join(', ')}`);
+    Notifications.show(context.length > 0
+      ? `Running ${this.getDisplayName(model)} on ${fileContextNames.join(', ')}${folderCount > 0 ? ` + ${folderCount} folder${folderCount > 1 ? 's' : ''}` : ''}`
+      : `Running ${this.getDisplayName(model)}`);
 
     requestAnimationFrame(() => {
       const el = document.querySelector(`.model-item[data-run-id="${run.id}"]`);
@@ -472,6 +493,13 @@ const Models = {
     }
   },
 
+  _describeRunContext(run) {
+    const names = (run.specNames || []).filter(Boolean);
+    const folders = (run.context || []).filter(c => c.type === 'folder').map(c => c.name + '/');
+    const parts = [...names, ...folders];
+    return parts.length > 0 ? parts.join(', ') : 'prompt';
+  },
+
   _finishRun(run) {
     const alias = this.getAlias(run.model.id);
     const record = {
@@ -500,7 +528,8 @@ const Models = {
 
     this.render();
     App.updateCounts();
-    Notifications.show(`${this.getDisplayName(run.model)} finished processing ${(run.specNames || [run.spec]).join(', ')}`);
+    this.updateUsageSummary();
+    Notifications.show(`${this.getDisplayName(run.model)} finished processing ${this._describeRunContext(run)}`);
 
     const messagesEl = document.getElementById('chat-messages');
     if (messagesEl) {
@@ -719,7 +748,7 @@ const Models = {
           <div class="model-info">
             <div class="model-name">${alias ? alias.customName : run.model.name}</div>
             <div class="model-alias">${run.model.name}</div>
-            <div class="model-detail">${run.spec}.md</div>
+            <div class="model-detail">${run.spec ? run.spec + '.md' : 'prompt run'}</div>
           </div>
           <span class="model-time" data-time="${timeSource}">${timeText}</span>
           <span class="model-status ${statusClass}">${run.status}</span>
@@ -805,8 +834,7 @@ const Models = {
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
-    dropdown.style.left = rect.left + 'px';
-    dropdown.style.top = rect.bottom + 4 + 'px';
+    Modals.positionPopover(dropdown, rect.left, rect.bottom, 4);
     dropdown.classList.add('active');
     overlay.classList.add('active');
 
@@ -909,8 +937,8 @@ const Models = {
     if (query) {
       history = history.filter(r => {
         const name = (r.alias || r.modelName).toLowerCase();
-        const spec = r.specName.toLowerCase();
-        return name.includes(query) || spec.includes(query);
+        const ctx = (r.specName || '').toLowerCase();
+        return name.includes(query) || ctx.includes(query);
       });
     }
 
@@ -927,7 +955,7 @@ const Models = {
           <div class="history-item-info">
             <div class="history-item-name">${displayName}</div>
             <div class="history-item-alias">${record.modelName}</div>
-            <div class="history-item-spec">${record.specName}.md</div>
+            <div class="history-item-spec">${record.specName ? record.specName + '.md' : 'prompt run'}</div>
           </div>
           <div class="history-item-metrics">
             <span>${this.formatTokens(record.inputTokens + record.outputTokens)}</span>
