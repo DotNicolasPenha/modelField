@@ -1,0 +1,65 @@
+/* ── Context Menu ── */
+
+.context-menu {
+  position: fixed;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  min-width: 160px;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.95);
+  transition: opacity var(--duration-fast) var(--ease), visibility var(--duration-fast), transform var(--duration-fast) var(--ease-spring);
+  box-shadow: var(--shadow-lg);
+}
+
+.context-menu.active {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease),
+              color var(--duration-fast) var(--ease),
+              transform var(--duration-fast) var(--ease);
+}
+
+.context-menu-item:first-child {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.context-menu-item:last-child {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.context-menu-item:hover {
+  background: var(--overlay-hover);
+  color: var(--text-primary);
+  transform: translateX(2px);
+}
+
+.context-menu-item.danger {
+  color: var(--text-tertiary);
+}
+
+.context-menu-item svg {
+  width: 14px;
+  height: 14px;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: var(--space-1) 0;
+}

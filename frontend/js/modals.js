@@ -236,13 +236,23 @@ const Modals = {
       const field = provider.apiKeyField;
       if (!field) continue;
 
-      const group = document.createElement('div');
-      group.className = 'form-group';
+      const item = document.createElement('div');
+      item.className = 'provider-key-item';
+
+      const head = document.createElement('div');
+      head.className = 'provider-key-head';
 
       const label = document.createElement('label');
-      label.className = 'form-label';
+      label.className = 'provider-key-name';
+      label.htmlFor = `api-${field}`;
       label.textContent = provider.displayName || provider.name;
-      group.appendChild(label);
+      head.appendChild(label);
+
+      const status = document.createElement('span');
+      status.className = 'key-status';
+      status.id = `status-${field}`;
+      status.role = 'status';
+      head.appendChild(status);
 
       const row = document.createElement('div');
       row.className = 'api-key-row';
@@ -253,29 +263,30 @@ const Modals = {
       input.id = `api-${field}`;
       input.dataset.providerInput = field;
       input.placeholder = provider.keyPlaceholder || '';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
 
       const testBtn = document.createElement('button');
+      testBtn.type = 'button';
       testBtn.className = 'btn btn-secondary btn-test-key';
       testBtn.dataset.provider = provider.name;
       testBtn.textContent = 'Test';
       testBtn.addEventListener('click', () => this.testKey(provider.name));
 
       const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
       clearBtn.className = 'btn btn-primary btn-clear-key';
       clearBtn.dataset.provider = field;
       clearBtn.textContent = 'Clear';
       clearBtn.addEventListener('click', () => this.clearKey(provider.name));
 
-      const status = document.createElement('span');
-      status.className = 'key-status';
-      status.id = `status-${field}`;
-
       row.appendChild(input);
       row.appendChild(testBtn);
       row.appendChild(clearBtn);
-      row.appendChild(status);
-      group.appendChild(row);
-      container.appendChild(group);
+
+      item.appendChild(head);
+      item.appendChild(row);
+      container.appendChild(item);
     }
   },
 
@@ -287,8 +298,8 @@ const Modals = {
       input.value = keys[input.dataset.providerInput] || '';
     });
 
-    document.querySelectorAll('.key-status').forEach(el => {
-      el.textContent = 'Not Tested';
+    document.querySelectorAll('#api-keys-list .key-status').forEach(el => {
+      el.textContent = 'Not tested';
       el.className = 'key-status';
     });
 
@@ -338,7 +349,7 @@ const Modals = {
 
     const apiKey = inputEl.value.trim();
     if (!apiKey) {
-      statusEl.textContent = '';
+      statusEl.textContent = 'Not tested';
       statusEl.className = 'key-status';
       return;
     }
@@ -369,7 +380,7 @@ const Modals = {
       inputEl.focus();
     }
     if (statusEl) {
-      statusEl.textContent = '';
+      statusEl.textContent = 'Not tested';
       statusEl.className = 'key-status';
     }
   },

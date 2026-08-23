@@ -40,9 +40,31 @@ Frontend
 │   ├── tokens.css
 │   │   └── design tokens + themes
 │   ├── base.css
+│   │   └── reset + element defaults
 │   ├── layout.css
+│   │   └── app shell: topbar, workspace, panels
 │   ├── components.css
+│   │   └── generic primitives (.btn, .input, .textarea)
+│   ├── forms.css
+│   │   └── form controls, custom select, API key rows
+│   ├── modals.css
+│   │   └── modal shells + toasts
+│   ├── dropdowns.css
+│   │   └── dropdown menus
+│   ├── context-menu.css
+│   │   └── context menus
+│   ├── files.css
+│   │   └── file browser, context panel, model info, trash
+│   ├── checklist.css
+│   │   └── project checklist
+│   ├── run.css
+│   │   └── run modal, models panel, history
+│   ├── chat.css
+│   │   └── chat UI + markdown rendering
+│   ├── search.css
+│   │   └── search behavior
 │   └── editor.css
+│       └── tabs, editor area, toolbar, status
 └── js/
     ├── app.js
     │   └── global state + initialization + persistence bridge
@@ -82,6 +104,13 @@ Use this map before opening files.
 | Design tokens/themes     | `frontend/css/tokens.css`               |
 | Layout                   | `frontend/css/layout.css`               |
 | Components               | `frontend/css/components.css`           |
+| Forms/API keys           | `frontend/css/forms.css`                |
+| Modals/toasts            | `frontend/css/modals.css`               |
+| File browser/context     | `frontend/css/files.css`                |
+| Checklist styling        | `frontend/css/checklist.css`            |
+| Run/models/history       | `frontend/css/run.css`                  |
+| Chat styling             | `frontend/css/chat.css`                 |
+| Search styling           | `frontend/css/search.css`               |
 | Editor styling           | `frontend/css/editor.css`               |
 | Global frontend behavior | `frontend/js/app.js`                    |
 | Markdown editor          | `frontend/js/editor.js`                 |

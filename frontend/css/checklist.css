@@ -1,0 +1,292 @@
+/* ── Checklist Panel ── */
+
+.checklist-panel {
+  flex: 4;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.checklist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.checklist-count {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.checklist-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 var(--space-3);
+}
+
+.checklist-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+/* ── Checklist Item ── */
+
+.checklist-item {
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.checklist-item.entering {
+  animation: checklistEnter var(--duration-normal) var(--ease-spring) forwards;
+}
+
+.checklist-item.exiting {
+  animation: checklistExit var(--duration-fast) var(--ease-exit) forwards;
+}
+
+@keyframes checklistEnter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes checklistExit {
+  from { opacity: 1; transform: translateX(0); max-height: 60px; }
+  to { opacity: 0; transform: translateX(-8px); max-height: 0; }
+}
+
+.checklist-item:hover {
+  background: var(--overlay-hover);
+  transform: translateY(-1px);
+}
+
+.checklist-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px var(--space-2);
+  cursor: default;
+}
+
+.checklist-item.expanded .checklist-item-row {
+  padding: var(--space-2) var(--space-2);
+}
+
+/* ── Checkbox ── */
+
+.checklist-checkbox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.checklist-checkbox input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+  margin: 0;
+}
+
+.checklist-checkmark {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 3px;
+  transition: border-color var(--duration-normal) var(--ease),
+              background-color var(--duration-normal) var(--ease);
+  pointer-events: none;
+}
+
+.checklist-checkbox input:checked + .checklist-checkmark {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+}
+
+.checklist-checkbox input:checked + .checklist-checkmark::after {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 7px;
+  border: solid var(--bg);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg) scale(0);
+  margin: 1px auto;
+  animation: checkMarkDraw var(--duration-normal) var(--ease) forwards;
+}
+
+@keyframes checkMarkDraw {
+  to { transform: rotate(45deg) scale(1); }
+}
+
+/* ── Checklist Text ── */
+
+.checklist-item-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+  padding: 2px 4px;
+  border-radius: var(--radius-xs);
+}
+
+.checklist-item-text:hover {
+  background: var(--bg);
+}
+
+.checklist-item.checked .checklist-item-text {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+
+.checklist-item-text-input {
+  flex: 1;
+  height: 24px;
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* ── Checklist Actions ── */
+
+.checklist-item-expand,
+.checklist-item-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: wheight;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease),
+              color var(--duration-normal) var(--ease),
+              background-color var(--duration-normal) var(--ease);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.checklist-item:hover .checklist-item-expand,
+.checklist-item:hover .checklist-item-delete {
+  opacity: 1;
+}
+
+.checklist-item-expand:hover,
+.checklist-item-delete:hover {
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+.checklist-item-delete:hover {
+  color: #e74c3c;
+}
+
+.checklist-item.expanded .checklist-item-expand svg {
+  transform: rotate(180deg);
+  transition: transform var(--duration-normal) var(--ease);
+}
+
+.checklist-item-expand svg {
+  transition: transform var(--duration-normal) var(--ease);
+}
+
+/* ── Checklist Description ── */
+
+.checklist-item-desc-area {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  padding: 0 var(--space-2) 0 28px;
+  transition: grid-template-rows var(--duration-medium) var(--ease-emphasized), opacity var(--duration-medium) var(--ease-emphasized), padding var(--duration-medium) var(--ease-emphasized);
+}
+
+.checklist-item.expanded .checklist-item-desc-area {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  padding: 0 var(--space-2) var(--space-2) 28px;
+}
+
+.checklist-item-desc-area > * {
+  overflow: hidden;
+}
+
+.checklist-item-desc {
+  width: 100%;
+  padding: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-family: inherit;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-weight: 200;
+  resize: vertical;
+  outline: wheight;
+  transition: border-color var(--duration-normal) var(--ease);
+}
+
+.checklist-item-desc:focus {
+  border-color: var(--border);
+}
+
+.checklist-item-desc::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ── Checklist Add ── */
+
+.checklist-add {
+  padding: var(--space-2) var(--space-3);
+  flex-shrink: 0;
+}
+
+.checklist-add-input {
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: wheight;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--duration-normal) var(--ease);
+}
+
+.checklist-add-input:focus {
+  border-color: var(--text-secondary);
+}
+
+.checklist-add-input::placeholder {
+  color: var(--text-tertiary);
+}
