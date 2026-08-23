@@ -34,6 +34,20 @@ const Models = {
       this.showRunModal();
     });
 
+    document.getElementById('btn-send-chat')?.addEventListener('click', () => {
+      this.sendChatMessage();
+    });
+
+    document.getElementById('btn-stop-chat')?.addEventListener('click', () => {
+      if (this._currentAbortController) {
+        this._currentAbortController.abort();
+      }
+    });
+
+    document.getElementById('chat-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.sendChatMessage();
+    });
+
     this.timeInterval = setInterval(() => this.updateTimes(), 30000);
     this.render();
     this.updateUsageSummary();
@@ -1058,5 +1072,90 @@ const Models = {
 
     Modals.close('modal-history');
     Modals.open('modal-chat');
+  },
+
+  async sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const messages = document.getElementById('chat-messages');
+
+    if (!input || !messages) return;
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    const userMsg = document.createElement('div');
+    userMsg.className = 'chat-msg';
+    userMsg.innerHTML = `<div class="chat-msg-author">You</div>${ProviderBase.escapeHtml(text)}`;
+    messages.appendChild(userMsg);
+
+    input.value = '';
+    input.disabled = true;
+    input.classList.add('chat-input-disabled');
+
+    const currentRun = Models.currentRun;
+    const aiName = currentRun ? Models.getDisplayName(currentRun.model) : 'AI';
+
+    Models._showChatLoading(messages, aiName);
+    const btnStop = document.getElementById('btn-stop-chat');
+    if (btnStop) btnStop.style.display = '';
+
+    const abortController = new AbortController();
+    Models._currentAbortController = abortController;
+
+    messages.scrollTop = messages.scrollHeight;
+
+    try {
+      Models.chatHistory.push({ role: 'user', content: text });
+
+      const result = await API.sendChat(currentRun.model, Models.chatHistory, text, currentRun.context || [], (toolEvent) => {
+        Models._renderToolEvent(messages, toolEvent);
+      }, abortController.signal);
+
+      Models._removeChatLoading();
+      Models._currentAbortController = null;
+      if (btnStop) btnStop.style.display = 'none';
+
+      Models.chatHistory.push({ role: 'assistant', content: result.content });
+
+      const aiMsg = document.createElement('div');
+      aiMsg.className = 'chat-msg';
+      let metricsHtml = '';
+      if (result.metrics) {
+        metricsHtml = `<div class="chat-msg-metrics">
+          <span>${Models.formatTokens(result.metrics.inputTokens)} in · ${Models.formatTokens(result.metrics.outputTokens)} out</span>
+          <span>·</span>
+          <span>${Models.formatDuration(result.metrics.duration)}</span>
+          <span>·</span>
+          <span>${Models.formatCost(result.metrics.cost)}</span>
+        </div>`;
+      }
+      aiMsg.innerHTML = `<div class="chat-msg-author">${aiName}</div>${ProviderBase.formatMarkdown(result.content)}${metricsHtml}`;
+      messages.appendChild(aiMsg);
+
+      messages.scrollTop = messages.scrollHeight;
+      Models._updateContextBar();
+    } catch (error) {
+      Models._removeChatLoading();
+      Models._currentAbortController = null;
+      if (btnStop) btnStop.style.display = 'none';
+
+      if (error.name === 'AbortError') {
+        const cancelMsg = document.createElement('div');
+        cancelMsg.className = 'chat-msg chat-msg-error';
+        cancelMsg.innerHTML = `<div class="chat-msg-author">Stopped</div>Request cancelled by user.`;
+        messages.appendChild(cancelMsg);
+      } else {
+        const errMsg = document.createElement('div');
+        errMsg.className = 'chat-msg chat-msg-error';
+        errMsg.innerHTML = `<div class="chat-msg-author">Error</div>${ProviderBase.escapeHtml(error.message)}`;
+        messages.appendChild(errMsg);
+      }
+
+      messages.scrollTop = messages.scrollHeight;
+    } finally {
+      input.disabled = false;
+      input.classList.remove('chat-input-disabled');
+      input.focus();
+    }
   }
 };

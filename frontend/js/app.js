@@ -26,6 +26,7 @@ const App = {
     Files.init();
     Editor.init();
     Models.init();
+    Settings.init();
     Modals.init();
     Checklist.init();
     Checklist.render();

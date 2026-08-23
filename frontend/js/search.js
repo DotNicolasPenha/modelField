@@ -290,7 +290,7 @@ const Search = {
         } else if (id === 'run-on') {
           Models.showRunModal();
         } else if (id === 'settings') {
-          Modals.openSettings();
+          Settings.openSettings();
         } else if (id === 'clear-context') {
           FileExplorer.clearAll();
         } else if (id === 'history') {
