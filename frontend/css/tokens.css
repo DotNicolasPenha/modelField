@@ -44,12 +44,10 @@
   --line-height-relaxed: 1.5;
 
   /* ── Spacing ── */
-  /* NOTE: --space-4 (20px) breaks scale order; legacy value kept for
-     compatibility. Migrate usages to --space-6/--space-8 in refinement. */
   --space-1: 4px;
   --space-2: 6px;
   --space-3: 8px;
-  --space-4: 20px;
+  --space-4: 10px;
   --space-5: 12px;
   --space-6: 16px;
   --space-7: 20px;

@@ -247,7 +247,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </div>
-        <div class="chat-context-details" id="chat-context-details" style="display:none;">
+        <div class="chat-context-details is-hidden" id="chat-context-details">
           <div class="chat-context-detail-row">
             <span>System prompt</span>
             <span id="ctx-system-tokens">0</span>
@@ -269,7 +269,7 @@
       <div class="modal-body chat-messages" id="chat-messages"></div>
       <div class="modal-footer chat-input-area">
         <input type="text" class="input" id="chat-input" placeholder="Type a message...">
-        <button class="btn btn-secondary btn-stop-chat" id="btn-stop-chat" style="display:none;">Stop</button>
+        <button class="btn btn-secondary btn-stop-chat is-hidden" id="btn-stop-chat">Stop</button>
         <button class="btn btn-primary" id="btn-send-chat">Send</button>
       </div>
     </div>
@@ -435,7 +435,7 @@
           <div class="model-info-row"><span class="model-info-label">ID</span><span id="model-info-id"></span></div>
           <div class="model-info-row"><span class="model-info-label">Description</span><span id="model-info-desc"></span></div>
         </div>
-        <h4 class="section-title" style="margin-top: var(--space-4);">Recent Runs</h4>
+        <h4 class="section-title" style="margin-top: var(--space-7);">Recent Runs</h4>
         <div class="model-info-history" id="model-info-history"></div>
       </div>
     </div>

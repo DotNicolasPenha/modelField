@@ -97,7 +97,7 @@ Object.assign(Models, {
 
     Models._showChatLoading(messages, aiName);
     const btnStop = document.getElementById('btn-stop-chat');
-    if (btnStop) btnStop.style.display = '';
+    if (btnStop) btnStop.classList.remove('is-hidden');
 
     const abortController = new AbortController();
     Models._currentAbortController = abortController;
@@ -113,7 +113,7 @@ Object.assign(Models, {
 
       Models._removeChatLoading();
       Models._currentAbortController = null;
-      if (btnStop) btnStop.style.display = 'none';
+      if (btnStop) btnStop.classList.add('is-hidden');
 
       Models.chatHistory.push({ role: 'assistant', content: result.content });
       Models._syncTranscript();
@@ -138,7 +138,7 @@ Object.assign(Models, {
     } catch (error) {
       Models._removeChatLoading();
       Models._currentAbortController = null;
-      if (btnStop) btnStop.style.display = 'none';
+      if (btnStop) btnStop.classList.add('is-hidden');
 
       if (error.name === 'AbortError') {
         const cancelMsg = document.createElement('div');
@@ -328,8 +328,8 @@ Object.assign(Models, {
       // onclick assignment (not addEventListener): openChat runs on every
       // reopen and stacking listeners would toggle open+closed instantly.
       toggle.onclick = () => {
-        const isOpen = details.style.display !== 'none';
-        details.style.display = isOpen ? 'none' : '';
+        const isOpen = !details.classList.contains('is-hidden');
+        details.classList.toggle('is-hidden', isOpen);
         toggle.classList.toggle('open', !isOpen);
       };
     }

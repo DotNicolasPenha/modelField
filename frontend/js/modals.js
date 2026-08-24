@@ -46,11 +46,11 @@ const CustomSelect = {
         const query = searchInput.value.toLowerCase().trim();
         options.forEach(option => {
           const text = option.textContent.toLowerCase();
-          option.style.display = text.includes(query) ? '' : 'none';
+          option.classList.toggle('is-hidden', !text.includes(query));
         });
         dropdown.querySelectorAll('.custom-select-group').forEach(group => {
-          const visible = group.querySelectorAll('.custom-select-option:not([style*="display: none"])');
-          group.style.display = visible.length === 0 ? 'none' : '';
+          const visible = group.querySelectorAll('.custom-select-option:not(.is-hidden)');
+          group.classList.toggle('is-hidden', visible.length === 0);
         });
       });
     }

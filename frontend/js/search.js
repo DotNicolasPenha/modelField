@@ -385,16 +385,16 @@ const Search = {
       if (isSpec) {
         const file = App.state.files.find(f => f.name === fileEntry.name.replace('.md', ''));
         if (file) {
-          btnEditor.style.display = '';
+          btnEditor.classList.remove('is-hidden');
           btnEditor.onclick = () => {
             Files.openFile(file.id);
             Modals.close('modal-file-preview');
           };
         } else {
-          btnEditor.style.display = 'none';
+          btnEditor.classList.add('is-hidden');
         }
       } else {
-        btnEditor.style.display = 'none';
+        btnEditor.classList.add('is-hidden');
       }
     }
 

@@ -390,7 +390,7 @@ const Models = {
           tabsBar.querySelectorAll('.run-tab').forEach(t => t.classList.remove('active'));
           btn.classList.add('active');
           body.querySelectorAll('.run-tab-panel').forEach(panel => {
-            panel.style.display = panel.dataset.tab === tab.id ? '' : 'none';
+            panel.classList.toggle('is-hidden', panel.dataset.tab !== tab.id);
           });
         });
         tabsBar.appendChild(btn);
@@ -418,7 +418,7 @@ const Models = {
     const activeTabId = tabs[0]?.id;
     if (activeTabId) {
       body.querySelectorAll('.run-tab-panel').forEach(panel => {
-        panel.style.display = panel.dataset.tab === activeTabId ? '' : 'none';
+        panel.classList.toggle('is-hidden', panel.dataset.tab !== activeTabId);
       });
     }
 
@@ -427,7 +427,7 @@ const Models = {
       const activeTab = body.querySelector('.run-tab.active')?.dataset.tab;
       body.querySelectorAll('.run-tab-panel').forEach(panel => {
         if (activeTab && panel.dataset.tab !== activeTab) {
-          panel.style.display = 'none';
+          panel.classList.add('is-hidden');
           return;
         }
         let hasVisible = false;
@@ -435,10 +435,10 @@ const Models = {
           const name = item.querySelector('.model-name')?.textContent.toLowerCase() || '';
           const detail = item.querySelector('.model-detail')?.textContent.toLowerCase() || '';
           const match = !query || name.includes(query) || detail.includes(query);
-          item.style.display = match ? '' : 'none';
+          item.classList.toggle('is-hidden', !match);
           if (match) hasVisible = true;
         });
-        panel.style.display = hasVisible ? '' : 'none';
+        panel.classList.toggle('is-hidden', !hasVisible);
       });
     });
 
@@ -548,7 +548,7 @@ const Models = {
     const abortController = new AbortController();
     this._currentAbortController = abortController;
     const btnStop = document.getElementById('btn-stop-chat');
-    if (btnStop) btnStop.style.display = '';
+    if (btnStop) btnStop.classList.remove('is-hidden');
 
     try {
       const result = await API.sendRun(model, context, prompt, (toolEvent) => {
@@ -592,7 +592,7 @@ const Models = {
       this._removeChatLoading();
       this._currentAbortController = null;
       const btnStop = document.getElementById('btn-stop-chat');
-      if (btnStop) btnStop.style.display = 'none';
+      if (btnStop) btnStop.classList.add('is-hidden');
 
       if (error.name === 'AbortError') {
         run.status = 'cancelled';
