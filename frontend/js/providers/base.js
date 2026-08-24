@@ -194,6 +194,23 @@ const ProviderBase = {
     return provider._fetchedModels || provider.models || [];
   },
 
+  // Drops a model that the API itself rejected (404) from every catalog,
+  // including the static fallback, so ghosts stop appearing in the UI.
+  removeModel(providerName, modelId) {
+    const provider = this.get(providerName);
+    if (!provider) return;
+    if (provider._fetchedModels) {
+      provider._fetchedModels = provider._fetchedModels.filter(m => m.id !== modelId);
+    }
+    if (Array.isArray(provider.models)) {
+      provider.models = provider.models.filter(m => m.id !== modelId);
+    }
+    const cached = this._cache[providerName];
+    if (cached && Array.isArray(cached.data)) {
+      this._cache[providerName].data = cached.data.filter(m => m.id !== modelId);
+    }
+  },
+
   setCache(providerName, data) {
     this._cache[providerName] = {
       data: data,

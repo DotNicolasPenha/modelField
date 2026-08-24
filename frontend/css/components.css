@@ -53,20 +53,9 @@
   border-radius: var(--radius-md);
   font-size: var(--font-size-lg);
   width: 100%;
+  font-weight: 500;
   transition: background var(--duration-normal) var(--ease);
   /*border: 1px solid transparent;*/
-}
-
-.input:focus {
-  border: 1px solid var(--border);
-  background: var(--bg);
-  /*box-shadow: 0 0  3px var(--overlay), var(--shadow-sm);*/
-}
-
-.textarea:focus {
-  border-color: var(--border);
-  background: var(--bg);
-  box-shadow: 0 0 0 3px var(--overlay), var(--shadow-sm);
 }
 
 /* ── Micro-interactions (shared reaction layer) ── */
@@ -131,5 +120,6 @@ button:disabled {
   padding: var(--space-3);
   resize: vertical;
   font-family: inherit;
+  font-weight: 500;
   line-height: 1.5;
 }

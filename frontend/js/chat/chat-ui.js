@@ -173,33 +173,46 @@ Object.assign(Models, {
 
   _removeChatLoading() {
     document.getElementById('chat-loading')?.remove();
+    document.getElementById('chat-tool-status')?.remove();
   },
 
+  // Single in-place status line for tool activity:
+  //   (spinner) Reading ./index.html   → updates per call → removed when done.
+  // Errors persist as a compact line instead of one block per call.
   _renderToolEvent(container, event) {
     if (!container) return;
-    if (event.type === 'call') {
-      const el = document.createElement('div');
-      el.className = 'chat-tool-call';
-      el.innerHTML = `
-        <div class="chat-tool-header">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          <span class="chat-tool-name">${ProviderBase.escapeHtml(event.name)}</span>
-          <span class="chat-tool-status">executing...</span>
-        </div>
-        <div class="chat-tool-args">${ProviderBase.escapeHtml(JSON.stringify(event.arguments, null, 2))}</div>
-      `;
+
+    let el = document.getElementById('chat-tool-status');
+    if (!el || !container.contains(el)) {
+      el = document.createElement('div');
+      el.className = 'chat-msg chat-tool-statusline';
+      el.id = 'chat-tool-status';
       container.appendChild(el);
+    }
+
+    if (event.type === 'call') {
+      const verbs = { read_file: 'Reading', write_file: 'Writing', list_dir: 'Listing' };
+      const verb = verbs[event.name] || 'Running';
+      const target = event.arguments?.path ?? event.arguments?.directory ?? '';
+      el.classList.remove('chat-tool-statusline-error');
+      el.innerHTML = `
+        <div class="chat-spinner"></div>
+        <span class="chat-tool-statusline-text">${verb} <code>${ProviderBase.escapeHtml(String(target))}</code></span>
+      `;
       container.scrollTop = container.scrollHeight;
-    } else if (event.type === 'result') {
-      const existing = container.querySelectorAll('.chat-tool-call');
-      const lastTool = existing[existing.length - 1];
-      if (lastTool) {
-        const statusEl = lastTool.querySelector('.chat-tool-status');
-        if (statusEl) {
-          const isError = event.result && event.result.startsWith && event.result.startsWith('Error');
-          statusEl.textContent = isError ? 'error' : 'done';
-          statusEl.classList.add(isError ? 'chat-tool-error' : 'chat-tool-success');
-        }
+    } else {
+      const isError = typeof event.result === 'string' && event.result.startsWith('Error');
+      if (isError) {
+        el.classList.add('chat-tool-statusline-error');
+        el.innerHTML = `
+          <span class="chat-tool-statusline-text">${ProviderBase.escapeHtml(event.result.slice(0, 160))}</span>
+        `;
+        container.scrollTop = container.scrollHeight;
+      } else {
+        el.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        `;
+        setTimeout(() => document.getElementById('chat-tool-status')?.remove(), 350);
       }
     }
   },

@@ -240,52 +240,23 @@
 
 /* ── Tool Calls ── */
 
-.chat-tool-call {
-  padding: var(--space-2) var(--space-3);
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  margin: var(--space-1) 0;
-  font-size: var(--font-size-sm);
-}
-
-.chat-tool-header {
+.chat-tool-statusline {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+}
+
+.chat-tool-statusline-text code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: var(--font-size-xs);
   color: var(--text-secondary);
 }
 
-.chat-tool-name {
-  font-weight: 600;
-  color: var(--accent);
-}
-
-.chat-tool-status {
-  margin-left: auto;
-  font-size: var(--font-size-xs);
-  color: var(--text-tertiary);
-}
-
-.chat-tool-status.chat-tool-success {
-  color: #30d158;
-}
-
-.chat-tool-status.chat-tool-error {
-  color: #ff453a;
-}
-
-.chat-tool-args {
-  margin-top: var(--space-1);
-  padding: var(--space-2);
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: var(--font-size-xs);
-  color: var(--text-tertiary);
-  white-space: pre-wrap;
-  max-height: 120px;
-  overflow-y: auto;
+.chat-tool-statusline-error .chat-tool-statusline-text {
+  color: var(--danger);
 }
 
 /* ── Chat Input ── */

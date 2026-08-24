@@ -51,6 +51,14 @@ const AgentLoop = {
           iterations--;
           continue;
         }
+        if (response.status === 404) {
+          // Model doesn't exist on the API — prune it from the catalog
+          // (including the static fallback) so it stops being offered.
+          ProviderBase.removeModel(provider.name, model.id);
+          const err = this.handleError(response.status, errorData, provider.displayName);
+          err.message += ' It has been removed from the model list.';
+          throw err;
+        }
         throw this.handleError(response.status, errorData, provider.displayName);
       }
 

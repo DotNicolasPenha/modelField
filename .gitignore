@@ -7,3 +7,5 @@ build/darwin/
 *.so
 *.dylib
 frontend/wailsjs/
+frontend-review.md
+modelfield
