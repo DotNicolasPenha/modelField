@@ -131,9 +131,14 @@ Object.assign(Models, {
     const messages = document.getElementById('chat-messages');
     const input = document.getElementById('chat-input');
 
+    // Old records predate message persistence: synthesize the transcript
+    // from prompt + result so replay still shows both sides.
     const transcript = (record.messages && record.messages.length > 0)
       ? record.messages
-      : [{ role: 'assistant', content: record.result }];
+      : [
+          ...(record.prompt ? [{ role: 'user', content: record.prompt }] : []),
+          ...(record.result ? [{ role: 'assistant', content: record.result }] : [])
+        ];
 
     this.currentRun = {
       id: record.id,

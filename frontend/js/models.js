@@ -53,9 +53,43 @@ const Models = {
     });
 
     this.timeInterval = setInterval(() => this.updateTimes(), 30000);
+    this._restoreRunningFromHistory();
     this.render();
     this.updateUsageSummary();
     this._fetchModelsOnStartup();
+  },
+
+  // The running list is in-memory; after an app restart, repopulate it
+  // from persisted history so the side section doesn't come up empty.
+  _restoreRunningFromHistory() {
+    if (this.running.length > 0) return;
+    const MAX_RESTORED = 15;
+    this.running = (App.state.runHistory || []).slice(0, MAX_RESTORED).map(r => ({
+      id: r.id,
+      model: { id: r.modelId, name: r.modelName },
+      context: this._contextFromRecord(r),
+      spec: r.specName || '',
+      specNames: r.specNames || [],
+      filePaths: r.filePaths || [],
+      prompt: r.prompt || '',
+      title: r.title || '',
+      tags: r.tags || [],
+      status: r.status === 'running' ? 'error' : (r.status || 'finished'),
+      started: r.started,
+      finished: r.finished,
+      lastAccessed: null,
+      result: r.result,
+      metrics: {
+        inputTokens: r.inputTokens,
+        outputTokens: r.outputTokens,
+        duration: r.duration,
+        cost: r.cost,
+        resultSize: r.resultSize,
+        toolCalls: r.toolCalls,
+        iterations: r.iterations
+      },
+      transcript: r.messages || undefined
+    }));
   },
 
   async _fetchModelsOnStartup() {
@@ -256,7 +290,14 @@ const Models = {
 
     const groups = this.getModelsByProvider();
     const hasAnyModels = groups.some(g => g.models.length > 0);
-    const recents = App.state.recentModels || [];
+
+    // Drop pruned/dead models from recents (both render and storage).
+    const availableIds = new Set(this.getAvailableModels().map(m => m.id));
+    const recents = (App.state.recentModels || []).filter(rm => availableIds.has(rm.id));
+    if (recents.length !== (App.state.recentModels || []).length) {
+      App.state.recentModels = recents;
+      App.saveRecentModels?.();
+    }
 
     if (!hasAnyModels && recents.length === 0) {
       body.appendChild(this._createEl('p', 'text-muted', { text: 'Configure an API key in Settings to use models.' }));

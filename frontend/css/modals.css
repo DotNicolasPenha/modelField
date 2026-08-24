@@ -33,7 +33,7 @@
   box-shadow: var(--shadow-popover);
   padding: var(--space-5);
   width: 90%;
-  max-height: 85vh;
+  /*max-height: 85vh;*/
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -132,7 +132,7 @@
 .modal-sm { max-width: 400px; }
 .modal-md { max-width: 560px; }
 .modal-lg { max-width: 720px; }
-.modal-xl { max-width: 1100px; }
+.modal-xl { max-width: 11000px; }
 
 /* ── Modal Parts ── */
 

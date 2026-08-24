@@ -51,25 +51,29 @@ type ModelsCache struct {
 }
 
 type RunRecord struct {
-	ID             string   `json:"id"`
-	ModelID        string   `json:"modelId"`
-	ModelName      string   `json:"modelName"`
-	Alias          string   `json:"alias"`
-	SpecName      string   `json:"specName"`
-	SpecNames      []string `json:"specNames"`
-	FilePaths      []string `json:"filePaths"`
-	Prompt         string   `json:"prompt"`
-	Status         string   `json:"status"`
-	Started        string   `json:"started"`
-	Finished       string   `json:"finished"`
-	Result         string   `json:"result"`
-	InputTokens    int      `json:"inputTokens"`
-	OutputTokens   int      `json:"outputTokens"`
-	Duration       float64  `json:"duration"`
-	Cost           float64  `json:"cost"`
-	ResultSize     int      `json:"resultSize"`
-	ToolCalls      int      `json:"toolCalls"`
-	Iterations     int      `json:"iterations"`
+	ID             string                   `json:"id"`
+	ModelID        string                   `json:"modelId"`
+	ModelName      string                   `json:"modelName"`
+	Alias          string                   `json:"alias"`
+	Title          string                   `json:"title"`
+	Tags           []string                 `json:"tags"`
+	SpecName       string                   `json:"specName"`
+	SpecNames      []string                 `json:"specNames"`
+	FilePaths      []string                 `json:"filePaths"`
+	Prompt         string                   `json:"prompt"`
+	Status         string                   `json:"status"`
+	Started        string                   `json:"started"`
+	Finished       string                   `json:"finished"`
+	Result         string                   `json:"result"`
+	Messages       []map[string]interface{} `json:"messages"`
+	Context        []map[string]interface{} `json:"context"`
+	InputTokens    int                      `json:"inputTokens"`
+	OutputTokens   int                      `json:"outputTokens"`
+	Duration       float64                  `json:"duration"`
+	Cost           float64                  `json:"cost"`
+	ResultSize     int                      `json:"resultSize"`
+	ToolCalls      int                      `json:"toolCalls"`
+	Iterations     int                      `json:"iterations"`
 }
 
 type CheckItem struct {

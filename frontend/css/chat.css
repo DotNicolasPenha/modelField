@@ -5,8 +5,7 @@
   flex-direction: column;
   gap: var(--space-5);
   min-height: 300px;
-  max-height: 1000px;
-  height: 10000px;
+  max-height: 900px;
   max-width: 1000px;
 }
 
