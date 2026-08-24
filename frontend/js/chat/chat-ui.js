@@ -184,7 +184,21 @@ Object.assign(Models, {
       App.saveRunHistory();
     }
 
+    // Keep the sidebar's copy of this run in sync (history replay creates
+    // a separate object from the one stored in this.running).
+    const runningEntry = this.running.find(r => r.id === run.id);
+    if (runningEntry) {
+      runningEntry.title = run.title;
+      runningEntry.tags = run.tags;
+    }
+
     this._updateChatHeaderMeta(run);
+    // Sidebar cards prefer run titles over model names — keep them in sync.
+    this.render();
+    if (document.getElementById('modal-history')?.classList.contains('active')) {
+      const query = document.getElementById('history-search')?.value.toLowerCase().trim() || '';
+      this.renderHistory(query);
+    }
   },
 
   _updateChatHeaderMeta(run) {
