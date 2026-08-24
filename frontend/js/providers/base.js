@@ -28,19 +28,32 @@ const ProviderBase = {
   },
 
   // Unified HTTP helper. Providers flagged with needsProxy are routed through
-  // the Go backend to bypass webview CORS restrictions.
+  // the Go backend to bypass webview CORS restrictions. When an AbortSignal
+  // is provided, the request is registered under an id so abort cancels the
+  // in-flight Go HTTP call (real stop, not cooperative).
+  _nextReqId: 1,
+
   async http(name, url, options = {}) {
     const method = options.method || 'GET';
     const headers = options.headers || {};
     if (this._usesProxy(name)) {
+      if (options.signal) {
+        const id = this._nextReqId++;
+        const onAbort = () => window.go.main.App.HTTPCancel(id);
+        options.signal.addEventListener('abort', onAbort, { once: true });
+        try {
+          const resp = await window.go.main.App.HTTPFetchWithID(id, method, url, headers, options.body || '');
+          return this._proxyResponse(resp);
+        } catch (e) {
+          // Go returns "context canceled" when cancelled via HTTPCancel.
+          if (options.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+          throw e;
+        } finally {
+          options.signal.removeEventListener('abort', onAbort);
+        }
+      }
       const resp = await window.go.main.App.HTTPFetch(method, url, headers, options.body || '');
-      return {
-        ok: resp.status >= 200 && resp.status < 300,
-        status: resp.status,
-        headers: resp.headers || {},
-        json: async () => JSON.parse(resp.body),
-        text: async () => resp.body
-      };
+      return this._proxyResponse(resp);
     }
     return fetch(url, {
       method: method,
@@ -48,6 +61,16 @@ const ProviderBase = {
       body: options.body || undefined,
       signal: options.signal
     });
+  },
+
+  _proxyResponse(resp) {
+    return {
+      ok: resp.status >= 200 && resp.status < 300,
+      status: resp.status,
+      headers: resp.headers || {},
+      json: async () => JSON.parse(resp.body),
+      text: async () => resp.body
+    };
   },
 
   _retryAfterSeconds(response) {

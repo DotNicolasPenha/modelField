@@ -235,6 +235,7 @@
 
 .checklist-item.expanded .checklist-item-desc-area {
   grid-template-rows: 1fr;
+  height: 300px;
   opacity: 1;
 }
 

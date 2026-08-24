@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -366,19 +367,36 @@ func (a *App) GetFileInfo(path string) FileInfo {
 }
 
 type HTTPResponse struct {
-	Status int    `json:"status"`
-	Body   string            `json:"body"`
+	Status  int               `json:"status"`
+	Body    string            `json:"body"`
 	Headers map[string]string `json:"headers"`
 }
 
-// HTTPFetch proxies HTTP requests from the frontend, bypassing webview CORS restrictions.
-func (a *App) HTTPFetch(method string, url string, headers map[string]string, body string) (HTTPResponse, error) {
+// Registry of in-flight proxied requests so the frontend can cancel them
+// (Stop button) instead of waiting for the server to answer.
+var (
+	httpCancelsMu sync.Mutex
+	httpCancels   = make(map[int64]context.CancelFunc)
+)
+
+func (a *App) doHTTPFetch(id int64, method, url string, headers map[string]string, body string) (HTTPResponse, error) {
 	if !strings.HasPrefix(url, "https://") {
 		return HTTPResponse{}, fmt.Errorf("only https URLs are allowed")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
+
+	if id != 0 {
+		httpCancelsMu.Lock()
+		httpCancels[id] = cancel
+		httpCancelsMu.Unlock()
+		defer func() {
+			httpCancelsMu.Lock()
+			delete(httpCancels, id)
+			httpCancelsMu.Unlock()
+		}()
+	}
 
 	req, err := http.NewRequestWithContext(ctx, method, url, strings.NewReader(body))
 	if err != nil {
@@ -408,5 +426,28 @@ func (a *App) HTTPFetch(method string, url string, headers map[string]string, bo
 	}
 
 	return HTTPResponse{Status: resp.StatusCode, Body: string(data), Headers: respHeaders}, nil
+}
+
+// HTTPFetch proxies HTTP requests from the frontend, bypassing webview CORS restrictions.
+func (a *App) HTTPFetch(method string, url string, headers map[string]string, body string) (HTTPResponse, error) {
+	return a.doHTTPFetch(0, method, url, headers, body)
+}
+
+// HTTPFetchWithID is HTTPFetch registered under an id so it can be
+// cancelled via HTTPCancel while in flight.
+func (a *App) HTTPFetchWithID(id int64, method string, url string, headers map[string]string, body string) (HTTPResponse, error) {
+	return a.doHTTPFetch(id, method, url, headers, body)
+}
+
+// HTTPCancel aborts an in-flight proxied request registered by HTTPFetchWithID.
+func (a *App) HTTPCancel(id int64) bool {
+	httpCancelsMu.Lock()
+	cancel, ok := httpCancels[id]
+	httpCancelsMu.Unlock()
+	if !ok {
+		return false
+	}
+	cancel()
+	return true
 }
 
