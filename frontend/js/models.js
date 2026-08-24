@@ -313,6 +313,21 @@ const Models = {
 
     await App.saveModelAliases();
     Notifications.show(customName ? `Alias saved for ${model.name}` : `Alias removed for ${model.name}`);
+
+    // Refresh every surface that renders model names: the running list
+    // (sidebar), open history list and any active dropdowns.
+    this.render();
+    if (document.getElementById('modal-history')?.classList.contains('active')) {
+      const query = document.getElementById('history-search')?.value.toLowerCase().trim() || '';
+      this.renderHistory(query);
+    }
+    document.querySelectorAll('.dropdown-menu.active .dropdown-item').forEach(item => {
+      const aliasNow = this.getAlias(model.id);
+      const nameEl = item.querySelector('.dropdown-item-name');
+      if (nameEl && item.dataset.modelId === model.id && aliasNow) {
+        nameEl.textContent = aliasNow.customName || model.name;
+      }
+    });
   },
 
   _createProviderGroup(group) {
