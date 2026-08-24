@@ -56,12 +56,18 @@ const AgentLoop = {
           iterations--;
           continue;
         }
-        if (response.status === 404) {
-          // Model doesn't exist on the API — prune it from the catalog
-          // (including the static fallback) so it stops being offered.
+        // Some gateways return non-404 statuses (404/502/503 with an error
+        // body) when a model doesn't exist or its upstream is gone — e.g.
+        // "Upstream request failed: Model is unavailable". Treat all of
+        // those as dead-model signals and prune the catalog entry.
+        const apiMessage = String(errorData?.error?.message || errorData?.message || '');
+        const modelUnavailable = response.status === 404
+          || /model is unavailable|unknown model|model not found|does not exist/i.test(apiMessage);
+        if (modelUnavailable) {
           ProviderBase.removeModel(provider.name, model.id);
-          const err = this.handleError(response.status, errorData, provider.displayName);
-          err.message += ' It has been removed from the model list.';
+          const err = new Error(
+            `${provider.displayName}: model "${model.id}" is unavailable and has been removed from the model list.`
+          );
           throw err;
         }
         throw this.handleError(response.status, errorData, provider.displayName);

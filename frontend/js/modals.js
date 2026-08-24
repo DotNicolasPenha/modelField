@@ -201,7 +201,14 @@ const Modals = {
   open(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
+      // Cancel any pending close animation: otherwise its finish callback
+      // would tear down this modal right after it reopens (breaks chained
+      // prompts like title -> tags).
       modal.classList.remove('closing');
+      if (modal._closeTimeout) {
+        clearTimeout(modal._closeTimeout);
+        modal._closeTimeout = null;
+      }
       modal.classList.add('active');
       const firstInput = modal.querySelector('input:not([type="hidden"])');
       if (firstInput) setTimeout(() => firstInput.focus(), 100);
@@ -218,12 +225,20 @@ const Modals = {
     }
 
     modal.classList.add('closing');
-    const finish = () => modal.classList.remove('active', 'closing');
+    // Guarded finish: only tears down if the modal is still closing
+    // (open() clears the flag when it reopens mid-animation).
+    const finish = () => {
+      if (!modal.classList.contains('closing')) return;
+      modal.classList.remove('active', 'closing');
+    };
 
     const surface = modal.querySelector('.modal');
-    const timeout = setTimeout(finish, 420);
+    modal._closeTimeout = setTimeout(finish, 420);
     surface?.addEventListener('animationend', () => {
-      clearTimeout(timeout);
+      if (modal._closeTimeout) {
+        clearTimeout(modal._closeTimeout);
+        modal._closeTimeout = null;
+      }
       finish();
     }, { once: true });
   },

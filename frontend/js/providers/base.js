@@ -191,11 +191,14 @@ const ProviderBase = {
   getModels(providerName) {
     const provider = this.get(providerName);
     if (!provider) return [];
-    return provider._fetchedModels || provider.models || [];
+    const pruned = this._prunedModelKeys();
+    return (provider._fetchedModels || provider.models || [])
+      .filter(m => !pruned.has(`${providerName}:${m.id}`));
   },
 
-  // Drops a model that the API itself rejected (404) from every catalog,
-  // including the static fallback, so ghosts stop appearing in the UI.
+  // Drops a model that the API itself rejected as unavailable from every
+  // catalog (fetched list, static fallback, cache) and remembers the
+  // decision across restarts so ghosts stop reappearing.
   removeModel(providerName, modelId) {
     const provider = this.get(providerName);
     if (!provider) return;
@@ -208,6 +211,20 @@ const ProviderBase = {
     const cached = this._cache[providerName];
     if (cached && Array.isArray(cached.data)) {
       this._cache[providerName].data = cached.data.filter(m => m.id !== modelId);
+    }
+    try {
+      const key = `${providerName}:${modelId}`;
+      const pruned = new Set(JSON.parse(localStorage.getItem('modelfield-pruned-models') || '[]'));
+      pruned.add(key);
+      localStorage.setItem('modelfield-pruned-models', JSON.stringify([...pruned]));
+    } catch (e) { /* storage unavailable — in-memory prune still applies */ }
+  },
+
+  _prunedModelKeys() {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('modelfield-pruned-models') || '[]'));
+    } catch (e) {
+      return new Set();
     }
   },
 
