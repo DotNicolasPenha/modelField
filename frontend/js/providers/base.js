@@ -312,11 +312,13 @@ const ProviderBase = {
     return [
       {
         name: 'read_file',
-        description: 'Read a file from disk',
+        description: 'Read a file from disk. Large files are truncated; use offset/limit to page through them.',
         parameters: {
           type: 'object',
           properties: {
-            path: { type: 'string', description: 'File path' }
+            path: { type: 'string', description: 'File path' },
+            offset: { type: 'integer', description: 'First line to read (1-based, default 1)' },
+            limit: { type: 'integer', description: 'Max lines to read (default 400). Prefer chunks over full reads of large files.' }
           },
           required: ['path']
         }
@@ -347,6 +349,16 @@ const ProviderBase = {
     ];
   },
 
+  // Caps a tool result before it enters the conversation. Every character
+  // here is re-sent on every subsequent agent round, so unbounded results
+  // burn rate limit budget quadratically.
+  _capToolResult(text, maxChars = 30000) {
+    const s = String(text ?? '');
+    if (s.length <= maxChars) return s;
+    return s.slice(0, maxChars)
+      + `\n\n[... TRUNCATED: ${s.length - maxChars} more characters. Re-call the tool with offset/limit or a narrower path.]`;
+  },
+
   _resolvePath(argsPath) {
     const project = App.state.projects.find(p => p.id === App.state.currentProject);
     const projectPath = project ? (project.path || '') : '';
@@ -359,6 +371,16 @@ const ProviderBase = {
     return PathGuard.isPathInsideProject(projectPath, resolvedPath);
   },
 
+  _sliceLines(content, offset, limit) {
+    const text = content || '';
+    const firstLine = Math.max(1, Number(offset) || 1);
+    const maxLines = Math.max(1, Math.min(Number(limit) || 400, 2000));
+    const lines = text.split('\n');
+    const slice = lines.slice(firstLine - 1, firstLine - 1 + maxLines).join('\n');
+    if (firstLine === 1 && maxLines >= lines.length) return text;
+    return `[lines ${firstLine}–${firstLine - 1 + slice.split('\n').length} of ${lines.length}]\n${slice}`;
+  },
+
   async executeTool(name, args) {
     switch (name) {
       case 'read_file': {
@@ -369,7 +391,7 @@ const ProviderBase = {
               return 'Error: access denied. Path is outside the project directory.';
             }
             const content = await window.go.main.App.ReadFileContent(resolvedPath);
-            return content || '';
+            return this._capToolResult(this._sliceLines(content, args.offset, args.limit));
           } catch (e) {
             return `Error reading file: ${e.message}`;
           }
@@ -399,7 +421,7 @@ const ProviderBase = {
               return 'Error: access denied. Path is outside the project directory.';
             }
             const entries = await window.go.main.App.ReadProjectDir(resolvedPath);
-            return JSON.stringify(entries);
+            return this._capToolResult(JSON.stringify(entries), 15000);
           } catch (e) {
             return `Error listing directory: ${e.message}`;
           }

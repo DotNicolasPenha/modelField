@@ -57,6 +57,7 @@ const PromptBuilder = {
 
 ## Tool Usage
 - Prefer read_file to understand before modifying
+- Large files: read in chunks with offset/limit (e.g. limit 200 per call) — every read is re-sent each round and burns rate limit budget
 - Batch related changes in one write_file call
 - Never ask the user to create/edit files — do it yourself
 - Use list_dir to discover structure before assuming paths
