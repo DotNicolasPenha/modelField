@@ -29,8 +29,9 @@ type File struct {
 }
 
 type ModelAlias struct {
-	ModelID    string `json:"modelId"`
-	CustomName string `json:"customName"`
+	ModelID    string   `json:"modelId"`
+	CustomName string   `json:"customName"`
+	Tags       []string `json:"tags"`
 }
 
 type ModelInfo struct {

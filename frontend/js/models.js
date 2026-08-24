@@ -239,10 +239,34 @@ const Models = {
   _createModelItem(model, providerName) {
     const item = this._createEl('div', 'model-item', { 'data-model-id': model.id });
     const info = this._createEl('div', 'model-info');
-    info.appendChild(this._createEl('div', 'model-name', { text: model.name }));
+    const alias = this.getAlias(model.id);
+    const nameEl = this._createEl('div', 'model-name');
+    nameEl.textContent = alias?.customName || model.name;
+    if (alias?.customName) nameEl.title = model.name;
+    info.appendChild(nameEl);
+
+    if (alias && alias.tags && alias.tags.length > 0) {
+      const tagsEl = this._createEl('div', 'model-tags');
+      for (const tag of alias.tags) {
+        tagsEl.appendChild(this._createEl('span', 'history-item-tag', { text: tag }));
+      }
+      info.appendChild(tagsEl);
+    }
+
     const desc = (model.description || providerName).substring(0, 50);
     info.appendChild(this._createEl('div', 'model-detail model-detail-truncated', { text: desc }));
     item.appendChild(info);
+
+    const editBtn = this._createEl('button', 'model-item-edit');
+    editBtn.title = 'Title & tags';
+    editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    editBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await this.editModelAlias(model);
+      this.showRunModal();
+    });
+    item.appendChild(editBtn);
+
     const btn = this._createEl('button', 'btn btn-primary', { text: 'Run' });
     Object.assign(btn.style, { height: '32px', fontSize: '12px', padding: '0 12px' });
     btn.addEventListener('click', (e) => {
@@ -257,6 +281,38 @@ const Models = {
     });
     item.appendChild(btn);
     return item;
+  },
+
+  async editModelAlias(model) {
+    const existing = this.getAlias(model.id);
+    const name = await Modals.prompt(
+      `Display name for ${model.name}`,
+      existing?.customName || '',
+      null
+    );
+    if (name === null) return;
+
+    const tagsInput = await Modals.prompt(
+      'Tags (comma separated)',
+      (existing?.tags || []).join(', '),
+      null
+    );
+    if (tagsInput === null) return;
+
+    const customName = name.trim();
+    const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+
+    if (!customName && (!existing || tags.length === 0)) {
+      App.state.modelAliases = App.state.modelAliases.filter(a => a.modelId !== model.id);
+    } else if (existing) {
+      existing.customName = customName;
+      existing.tags = tags;
+    } else {
+      App.state.modelAliases.push({ modelId: model.id, customName, tags });
+    }
+
+    await App.saveModelAliases();
+    Notifications.show(customName ? `Alias saved for ${model.name}` : `Alias removed for ${model.name}`);
   },
 
   _createProviderGroup(group) {

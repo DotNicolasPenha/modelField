@@ -27,9 +27,10 @@ Object.assign(Models, {
 
     if (query) {
       history = history.filter(r => {
-        const name = (r.alias || r.modelName).toLowerCase();
+        const name = (r.title || r.alias || r.modelName).toLowerCase();
         const ctx = (r.specName || '').toLowerCase();
-        return name.includes(query) || ctx.includes(query);
+        const tags = (r.tags || []).join(' ').toLowerCase();
+        return name.includes(query) || ctx.includes(query) || tags.includes(query);
       });
     }
 
