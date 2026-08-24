@@ -419,6 +419,40 @@
   flex-shrink: 0;
 }
 
+.history-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.history-item-tag {
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--overlay);
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.history-item-edit,
+.chat-title-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: color var(--duration-normal) var(--ease);
+  flex-shrink: 0;
+}
+
+.history-item-edit:hover,
+.chat-title-edit:hover {
+  color: var(--text-primary);
+}
+
 .history-item-delete {
   background: none;
   border: none;

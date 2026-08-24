@@ -7,14 +7,16 @@ Object.assign(Models, {
     run.lastAccessed = new Date().toISOString();
     this.currentRun = run;
 
-    if (run.result && !run.chatHistory) {
+    if (run.transcript && run.transcript.length > 0) {
+      this.chatHistory = run.transcript.map(m => ({ ...m }));
+    } else if (run.result) {
       this.chatHistory = [
+        { role: 'user', content: run.prompt || '' },
         { role: 'assistant', content: run.result }
-      ];
-    } else if (!run.chatHistory) {
-      this.chatHistory = [];
+      ].filter(m => m.content);
+      run.transcript = this.chatHistory.map(m => ({ ...m }));
     } else {
-      this.chatHistory = [...run.chatHistory];
+      this.chatHistory = [];
     }
 
     const title = document.getElementById('chat-title');
@@ -24,7 +26,7 @@ Object.assign(Models, {
     const input = document.getElementById('chat-input');
 
     const displayName = this.getDisplayName(run.model);
-    if (title) title.textContent = displayName;
+    if (title) title.textContent = run.title || displayName;
     if (subtitle) subtitle.textContent = run.model.name;
 
     if (metricsInline) {
@@ -51,13 +53,12 @@ Object.assign(Models, {
     }
 
     if (messages) {
-      if (run.result) {
-        messages.innerHTML = `
-          <div class="chat-msg">
-            <div class="chat-msg-author">${displayName}</div>
-            ${ProviderBase.formatMarkdown(run.result)}
-          </div>
-        `;
+      const displayName = this.getDisplayName(run.model);
+      const transcript = run.transcript && run.transcript.length > 0
+        ? run.transcript
+        : (run.result ? [{ role: 'assistant', content: run.result }] : []);
+      if (transcript.length > 0) {
+        this._renderTranscript(messages, transcript, displayName);
       } else {
         messages.innerHTML = '';
       }
@@ -115,6 +116,7 @@ Object.assign(Models, {
       if (btnStop) btnStop.style.display = 'none';
 
       Models.chatHistory.push({ role: 'assistant', content: result.content });
+      Models._syncTranscript();
 
       const aiMsg = document.createElement('div');
       aiMsg.className = 'chat-msg';
@@ -155,6 +157,55 @@ Object.assign(Models, {
       input.disabled = false;
       input.classList.remove('chat-input-disabled');
       input.focus();
+    }
+  },
+
+  // Edit title/tags of the run currently open in the chat modal.
+  async _editRunMeta() {
+    const run = this.currentRun;
+    if (!run) return;
+
+    const title = await Modals.prompt('Run title', run.title || '', null);
+    if (title === null) return;
+    const tagsInput = await Modals.prompt(
+      'Tags (comma separated)',
+      (run.tags || []).join(', '),
+      null
+    );
+    if (tagsInput === null) return;
+
+    run.title = title.trim();
+    run.tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+
+    const record = App.state.runHistory.find(r => r.id === run.id);
+    if (record) {
+      record.title = run.title;
+      record.tags = run.tags;
+      App.saveRunHistory();
+    }
+
+    this._updateChatHeaderMeta(run);
+  },
+
+  _updateChatHeaderMeta(run) {
+    const titleEl = document.getElementById('chat-title');
+    if (titleEl && run.title) titleEl.textContent = run.title;
+  },
+
+  // Mirrors the plain user/assistant conversation into currentRun.transcript
+  // and keeps the stored history record in sync so reopening (now or after
+  // an app restart) shows every message exchanged.
+  _syncTranscript() {
+    const run = this.currentRun;
+    if (!run) return;
+    run.transcript = this.chatHistory
+      .filter(m => !m.toolCallId && !m.toolCalls)
+      .map(m => ({ role: m.role, content: m.content }));
+
+    const record = App.state.runHistory.find(r => r.id === run.id);
+    if (record) {
+      record.messages = run.transcript;
+      App.saveRunHistory();
     }
   },
 
@@ -202,18 +253,16 @@ Object.assign(Models, {
       container.scrollTop = container.scrollHeight;
     } else {
       const isError = typeof event.result === 'string' && event.result.startsWith('Error');
-      if (isError) {
-        el.classList.add('chat-tool-statusline-error');
-        el.innerHTML = `
-          <span class="chat-tool-statusline-text">${ProviderBase.escapeHtml(event.result.slice(0, 160))}</span>
-        `;
-        container.scrollTop = container.scrollHeight;
-      } else {
-        el.innerHTML = `
+      const verbs = { read_file: 'Read', write_file: 'Wrote', list_dir: 'Listed' };
+      const verb = verbs[event.name] || 'Ran';
+      const target = event.arguments?.path ?? event.arguments?.directory ?? '';
+      el.classList.toggle('chat-tool-statusline-error', isError);
+      el.innerHTML = isError
+        ? `<span class="chat-tool-statusline-text">${verb} <code>${ProviderBase.escapeHtml(String(target))}</code> — ${ProviderBase.escapeHtml(event.result.slice(0, 120))}</span>`
+        : `
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="chat-tool-statusline-text">${verb} <code>${ProviderBase.escapeHtml(String(target))}</code></span>
         `;
-        setTimeout(() => document.getElementById('chat-tool-status')?.remove(), 350);
-      }
     }
   },
 
@@ -262,12 +311,26 @@ Object.assign(Models, {
     const toggle = document.getElementById('chat-context-toggle');
     const details = document.getElementById('chat-context-details');
     if (toggle && details) {
-      toggle.addEventListener('click', () => {
+      // onclick assignment (not addEventListener): openChat runs on every
+      // reopen and stacking listeners would toggle open+closed instantly.
+      toggle.onclick = () => {
         const isOpen = details.style.display !== 'none';
         details.style.display = isOpen ? 'none' : '';
         toggle.classList.toggle('open', !isOpen);
-      });
+      };
     }
+  },
+
+  _renderTranscript(container, transcript, aiName) {
+    if (!container) return;
+    container.innerHTML = transcript.map(msg => {
+      const author = msg.role === 'user' ? 'You' : aiName;
+      const body = msg.role === 'user'
+        ? ProviderBase.escapeHtml(msg.content)
+        : ProviderBase.formatMarkdown(msg.content);
+      return `<div class="chat-msg"><div class="chat-msg-author">${author}</div>${body}</div>`;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
   },
 
   _updateChatMetrics(run) {

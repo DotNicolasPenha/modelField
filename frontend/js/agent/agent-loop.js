@@ -43,6 +43,11 @@ const AgentLoop = {
         signal
       });
 
+      // Proxied requests cannot be cancelled mid-flight (Go HTTPFetch has
+      // no cancellation), so stop acts cooperatively: the moment a response
+      // arrives we bail out instead of processing further rounds.
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         if (response.status === 400 && toolsEnabled) {

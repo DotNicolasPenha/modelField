@@ -5,7 +5,8 @@
   flex-direction: column;
   gap: var(--space-5);
   min-height: 300px;
-  max-height: 600px;
+  max-height: 800px;
+  max-width: 1000px;
 }
 
 .chat-msg {
@@ -167,7 +168,7 @@
 .chat-context-bar {
   padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--border);
-  background: var(--background);
+  background: var(--surface);
   font-size: var(--font-size-xs);
 }
 

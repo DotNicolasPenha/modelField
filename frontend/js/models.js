@@ -48,6 +48,10 @@ const Models = {
       if (e.key === 'Enter') this.sendChatMessage();
     });
 
+    document.getElementById('btn-edit-chat-meta')?.addEventListener('click', () => {
+      this._editRunMeta();
+    });
+
     this.timeInterval = setInterval(() => this.updateTimes(), 30000);
     this.render();
     this.updateUsageSummary();
@@ -466,6 +470,11 @@ const Models = {
         this.chatHistory.push({ role: 'assistant', content: result.content });
       }
 
+      run.transcript = [
+        { role: 'user', content: prompt },
+        { role: 'assistant', content: result.content }
+      ];
+
       this._finishRun(run);
     } catch (error) {
       this._removeChatLoading();
@@ -514,6 +523,24 @@ const Models = {
     return parts.length > 0 ? parts.join(', ') : 'prompt';
   },
 
+  // Context descriptors small enough to persist in history: spec contents
+  // are re-resolved from App.state.files on replay.
+  _lightContext(context) {
+    return (context || []).map(c => ({
+      type: c.type,
+      name: c.name,
+      path: c.path || undefined
+    }));
+  },
+
+  _contextFromRecord(record) {
+    return (record.context || []).map(c => {
+      if (c.type !== 'spec') return { ...c };
+      const file = App.state.files.find(f => f.name + '.md' === c.name && !f.trashed);
+      return file ? { name: c.name, content: file.content, type: 'spec' } : null;
+    }).filter(Boolean);
+  },
+
   _finishRun(run) {
     const alias = this.getAlias(run.model.id);
     const record = {
@@ -521,6 +548,8 @@ const Models = {
       modelId: run.model.id,
       modelName: run.model.name,
       alias: alias ? alias.customName : '',
+      title: run.title || '',
+      tags: run.tags || [],
       specName: run.spec,
       specNames: run.specNames || [run.spec],
       filePaths: run.filePaths || [],
@@ -529,6 +558,11 @@ const Models = {
       started: run.started,
       finished: run.finished,
       result: run.result,
+      messages: run.transcript || [
+        { role: 'user', content: run.prompt || '' },
+        { role: 'assistant', content: run.result }
+      ],
+      context: this._lightContext(run.context),
       inputTokens: run.metrics?.inputTokens || 0,
       outputTokens: run.metrics?.outputTokens || 0,
       duration: run.metrics?.duration || 0,
@@ -639,7 +673,7 @@ const Models = {
       return `
         <div class="model-item" data-run-id="${run.id}">
           <div class="model-info">
-            <div class="model-name">${alias ? alias.customName : run.model.name}</div>
+            <div class="model-name">${run.title || (alias ? alias.customName : run.model.name)}</div>
             <div class="model-alias">${run.model.name}</div>
             <div class="model-detail">${run.spec ? run.spec + '.md' : 'prompt run'}</div>
           </div>
