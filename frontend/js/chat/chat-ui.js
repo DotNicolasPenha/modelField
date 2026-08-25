@@ -71,6 +71,20 @@ Object.assign(Models, {
 
     this._initContextToggle();
     this._updateContextBar();
+
+    // Spatial continuity: if this chat was launched from a click (Start
+    // Run), the surface is born at that spot instead of the viewport
+    // center, then settles into place.
+    const overlay = document.getElementById('modal-chat');
+    const origin = this._runOrigin;
+    if (overlay && origin) {
+      overlay.style.setProperty('--origin-dx', `${Math.round(origin.x - window.innerWidth / 2)}px`);
+      overlay.style.setProperty('--origin-dy', `${Math.round(origin.y - window.innerHeight / 2)}px`);
+      overlay.classList.add('from-origin');
+      setTimeout(() => overlay.classList.remove('from-origin'), 750);
+      this._runOrigin = null;
+    }
+
     Modals.open('modal-chat');
   },
 

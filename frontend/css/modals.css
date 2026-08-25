@@ -48,7 +48,43 @@
 }
 
 .modal-overlay.active .modal {
-  animation: modalEnter 560ms var(--ease-spring) both;
+  animation: modalEnter 680ms var(--ease-spring) both;
+}
+
+/* Directional variant: surface is born at --origin-dx/dy (the click that
+   caused it), then travels and settles into the viewport center. */
+.modal-overlay.from-origin.active .modal {
+  animation-name: modalEnterFromOrigin;
+}
+
+@keyframes modalEnterFromOrigin {
+  0% {
+    opacity: 0;
+    transform:
+      translate(var(--origin-dx, 0px), var(--origin-dy, 0px))
+      perspective(1200px) scale(0.4) rotateX(8deg);
+    box-shadow: var(--shadow-none);
+    filter: blur(6px);
+  }
+  40% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  62% {
+    transform:
+      translate(calc(var(--origin-dx, 0px) * -0.06), calc(var(--origin-dy, 0px) * -0.06))
+      perspective(1200px) scale(1.015) rotateX(-1.2deg);
+    box-shadow: var(--shadow-xl);
+  }
+  82% {
+    transform: perspective(1200px) translateY(2px) scale(0.997);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
+    box-shadow: var(--shadow-popover);
+    filter: blur(0);
+  }
 }
 
 @keyframes modalEnter {

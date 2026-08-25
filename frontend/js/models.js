@@ -22,7 +22,14 @@ const Models = {
       this.showModelsDropdown(e, 'finished');
     });
 
-    document.getElementById('btn-start-run')?.addEventListener('click', () => {
+    document.getElementById('btn-start-run')?.addEventListener('click', (e) => {
+      // Causality anchor: the execution panel will animate in from the
+      // spot where "Start Run" was clicked.
+      const rect = e.currentTarget.getBoundingClientRect();
+      this._runOrigin = {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      };
       this.confirmStartRun();
     });
 
