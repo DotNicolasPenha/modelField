@@ -5,6 +5,8 @@ const OpenCodeZenProvider = {
   keyPlaceholder: 'sk-...',
   baseUrl: 'https://opencode.ai/zen/v1',
   needsProxy: true,
+  // Free tier burns rate limit fast; cap the agent loop tighter.
+  maxToolRounds: 6,
 
   models: [
     { id: 'big-pickle', name: 'Big Pickle', provider: 'OpenCode Zen', description: 'Free coding model', costPerInputToken: 0, costPerOutputToken: 0 },

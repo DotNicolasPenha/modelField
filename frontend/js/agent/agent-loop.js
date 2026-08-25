@@ -7,7 +7,8 @@ const AgentLoop = {
 
   // options: { provider, model, apiKey, systemPrompt, currentMessages,
   //            onToolCall, signal }
-  // Returns { content, toolHistory, inputTokens, outputTokens, iterations }.
+  // Round budget resolution order: provider.maxToolRounds → global default.
+  // Providers on free/tight rate-limit tiers can declare fewer rounds.
   async run(options) {
     const {
       provider, model, apiKey,
@@ -15,6 +16,7 @@ const AgentLoop = {
       onToolCall, signal
     } = options;
 
+    const maxRounds = provider.maxToolRounds ?? this.MAX_TOOL_ROUNDS;
     const url = provider.name === 'google'
       ? provider.getUrl(model.id, apiKey)
       : `${provider.baseUrl}/chat/completions`;
@@ -28,7 +30,7 @@ const AgentLoop = {
     let totalOutputTokens = 0;
     const toolHistory = [];
 
-    while (iterations < this.MAX_TOOL_ROUNDS) {
+    while (iterations < maxRounds) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       iterations++;
 

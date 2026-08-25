@@ -6,6 +6,7 @@ const ProviderBase = {
   //   name, displayName, apiKeyField, baseUrl, models[]
   //   needsProxy          → route HTTP through Go backend (CORS)
   //   toolDialect         → 'openai' (default) | 'anthropic' | 'google'
+  //   maxToolRounds       → optional agent-loop round budget (default 10)
   //   validateKey(k)      → {valid, error?}
   //   fetchModels(k)      → [{id, name?, description?}]
   //   buildHeaders(k)     → headers object
