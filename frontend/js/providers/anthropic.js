@@ -49,6 +49,8 @@ const AnthropicProvider = {
     };
   },
 
+  toolDialect: 'anthropic',
+
   buildBody(model, messages, systemPrompt, options = {}) {
     const body = {
       model: model.id,
@@ -57,14 +59,6 @@ const AnthropicProvider = {
     };
     if (systemPrompt) {
       body.system = systemPrompt;
-    }
-    if (options.tools) {
-      body.tools = options.tools.map(t => ({
-        name: t.name,
-        description: t.description,
-        input_schema: t.parameters
-      }));
-      body.tool_choice = options.toolChoice || { type: 'auto' };
     }
     return body;
   },

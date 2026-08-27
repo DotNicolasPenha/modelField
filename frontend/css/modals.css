@@ -1,0 +1,281 @@
+/* ── Modal Overlay ── */
+
+.modal-overlay {
+  border: 1px solid var(--border-subtle);
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--duration-slow) var(--ease-emphasized),
+              visibility var(--duration-slow),
+              background-color var(--duration-slow) var(input),
+              backdrop-filter var(--duration-slow) var(--ease-emphasized);
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+  backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
+  -webkit-backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
+}
+
+/* ── Modal Container ── */
+
+.modal {
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-popover);
+  padding: var(--space-5);
+  width: 90%;
+  /*max-height: 85vh;*/
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transform-origin: center center;
+  transform: perspective(1200px) translateY(10px) scale(0.95);
+  opacity: 0;
+  will-change: transform, opacity;
+  /* exit: fast, collapses backwards toward the backdrop */
+  transition:
+    transform var(--duration-fast) var(--ease-exit),
+    opacity var(--duration-fast) var(--ease-exit);
+}
+
+.modal-overlay.active .modal {
+  animation: modalEnter 680ms var(--ease-spring) both;
+}
+
+/* Directional variant: surface is born at --origin-dx/dy (the click that
+   caused it), then travels and settles into the viewport center. */
+.modal-overlay.from-origin.active .modal {
+  animation-name: modalEnterFromOrigin;
+}
+
+@keyframes modalEnterFromOrigin {
+  0% {
+    opacity: 0;
+    transform:
+      translate(var(--origin-dx, 0px), var(--origin-dy, 0px))
+      perspective(1200px) scale(0.4) rotateX(8deg);
+    box-shadow: var(--shadow-none);
+    filter: blur(6px);
+  }
+  40% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  62% {
+    transform:
+      translate(calc(var(--origin-dx, 0px) * -0.06), calc(var(--origin-dy, 0px) * -0.06))
+      perspective(1200px) scale(1.015) rotateX(-1.2deg);
+    box-shadow: var(--shadow-xl);
+  }
+  82% {
+    transform: perspective(1200px) translateY(2px) scale(0.997);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
+    box-shadow: var(--shadow-popover);
+    filter: blur(0);
+  }
+}
+
+@keyframes modalEnter {
+  0% {
+    opacity: 0;
+    transform: perspective(1200px) translateY(48px) scale(0.86) rotateX(8deg);
+    box-shadow: var(--shadow-none);
+    filter: blur(6px);
+  }
+  45% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  62% {
+    transform: perspective(1200px) translateY(-7px) scale(1.015) rotateX(-1.2deg);
+    box-shadow: var(--shadow-xl);
+  }
+  82% {
+    transform: perspective(1200px) translateY(2px) scale(0.997) rotateX(0.3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
+    box-shadow: var(--shadow-popover);
+    filter: blur(0);
+  }
+}
+
+/* content settles in slightly after the surface */
+.modal-overlay.active .modal > * {
+  animation: modalContentIn 420ms var(--ease-emphasized) both;
+}
+
+.modal-overlay.active .modal > *:nth-child(1) { animation-delay: 120ms; }
+.modal-overlay.active .modal > *:nth-child(2) { animation-delay: 190ms; }
+.modal-overlay.active .modal > *:nth-child(3) { animation-delay: 250ms; }
+.modal-overlay.active .modal > *:nth-child(4) { animation-delay: 300ms; }
+.modal-overlay.active .modal > *:nth-child(n+5) { animation-delay: 340ms; }
+
+@keyframes modalContentIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Modal Exit ── */
+
+.modal-overlay.closing {
+  pointer-events: none;
+}
+
+.modal-overlay.closing .modal > * {
+  animation: none;
+}
+
+.modal-overlay.closing .modal {
+  animation: modalExit 260ms var(--ease-exit) both;
+}
+
+@keyframes modalExit {
+  0% {
+    opacity: 1;
+    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
+    box-shadow: var(--shadow-popover);
+  }
+  30% {
+    transform: perspective(1200px) translateY(-6px) scale(0.90) rotateX(-1deg);
+  }
+  100% {
+    opacity: 0;
+    transform: perspective(1200px) translateY(100px) scale(0.34) rotateX(7deg);
+    box-shadow: var(--shadow-none);
+  }
+}
+
+.modal-sm { max-width: 400px; }
+.modal-md { max-width: 560px; }
+.modal-lg { max-width: 720px; }
+.modal-xl { max-width: 11000px; }
+
+/* ── Modal Parts ── */
+
+.modal-header {
+  padding: var(--space-7) var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-body {
+  padding: var(--space-7) var(--space-5);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-7) var(--space-5);
+}
+
+/* ── Settings Modal ── */
+
+#modal-settings .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+#modal-settings .section-title {
+  margin-bottom: var(--space-1);
+}
+
+.settings-hint {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-3);
+}
+
+#api-keys-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ── Toast ── */
+
+.toast-container {
+  position: fixed;
+  bottom: var(--space-5);
+  right: var(--space-5);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-7);
+  background: var(--text-primary);
+  color: var(--bg);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  animation: toastIn var(--duration-normal) var(--ease-emphasized);
+}
+
+.toast.removing {
+  animation: toastOut var(--duration-normal) var(--ease-exit) forwards;
+}
+
+.toast:nth-child(1) { animation-delay: 0ms; }
+.toast:nth-child(2) { animation-delay: 30ms; }
+.toast:nth-child(3) { animation-delay: 60ms; }
+
+@keyframes toastIn {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.92);
+  }
+  55% {
+    transform: translateY(-4px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.94);
+  }
+}
+
+.toast svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}

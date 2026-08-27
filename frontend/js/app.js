@@ -12,6 +12,7 @@ const App = {
     dirTree: [],
     selectedSpecs: [],
     selectedFiles: [],
+    selectedFolders: [],
     diskCache: {}
   },
 
@@ -25,12 +26,15 @@ const App = {
     Files.init();
     Editor.init();
     Models.init();
+    Settings.init();
     Modals.init();
     Checklist.init();
     Checklist.render();
     Search.init();
+    FileExplorer.init();
     FileExplorer.renderContext();
     FileBrowser.init();
+    Panels.init();
     FileBrowser.render();
     this.updateCounts();
   },
@@ -60,7 +64,8 @@ const App = {
         runHistory: this.state.runHistory,
         recentModels: this.state.recentModels,
         selectedSpecs: this.state.selectedSpecs,
-        selectedFiles: this.state.selectedFiles
+        selectedFiles: this.state.selectedFiles,
+        selectedFolders: this.state.selectedFolders
       }));
     } catch (e) {
       console.warn('Failed to save state:', e);
@@ -97,6 +102,7 @@ const App = {
           this.state.recentModels = parsed.recentModels || [];
           this.state.selectedSpecs = parsed.selectedSpecs || [];
           this.state.selectedFiles = parsed.selectedFiles || [];
+          this.state.selectedFolders = parsed.selectedFolders || [];
         }
       } catch (e) {
         console.warn('Failed to load state:', e);
@@ -141,7 +147,8 @@ const App = {
     const key = `modelfield-context-${this.state.currentProject}`;
     localStorage.setItem(key, JSON.stringify({
       selectedSpecs: this.state.selectedSpecs || [],
-      selectedFiles: this.state.selectedFiles || []
+      selectedFiles: this.state.selectedFiles || [],
+      selectedFolders: this.state.selectedFolders || []
     }));
   },
 
@@ -149,6 +156,7 @@ const App = {
     if (!this.state.currentProject) {
       this.state.selectedSpecs = [];
       this.state.selectedFiles = [];
+      this.state.selectedFolders = [];
       return;
     }
     const key = `modelfield-context-${this.state.currentProject}`;
@@ -158,13 +166,16 @@ const App = {
         const parsed = JSON.parse(saved);
         this.state.selectedSpecs = parsed.selectedSpecs || [];
         this.state.selectedFiles = parsed.selectedFiles || [];
+        this.state.selectedFolders = parsed.selectedFolders || [];
       } catch (e) {
         this.state.selectedSpecs = [];
         this.state.selectedFiles = [];
+        this.state.selectedFolders = [];
       }
     } else {
       this.state.selectedSpecs = [];
       this.state.selectedFiles = [];
+      this.state.selectedFolders = [];
     }
   },
 

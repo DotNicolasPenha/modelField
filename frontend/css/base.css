@@ -70,8 +70,3 @@ input, textarea, select {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
-
-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}

@@ -2,6 +2,23 @@ const ProviderBase = {
   _providers: {},
   _cache: {},
 
+  // Provider contract:
+  //   name, displayName, apiKeyField, baseUrl, models[]
+  //   needsProxy          → route HTTP through Go backend (CORS)
+  //   toolDialect         → 'openai' (default) | 'anthropic' | 'google'
+  //   maxToolRounds       → optional agent-loop round budget (default 10)
+  //   validateKey(k)      → {valid, error?}
+  //   fetchModels(k)      → [{id, name?, description?}]
+  //   buildHeaders(k)     → headers object
+  //   getUrl(modelId, k)  → endpoint URL (google only)
+  //   buildBody(model, messages, systemPrompt, options)
+  //                       → request body; tools are guaranteed by
+  //                         ProviderBase.buildBody wrapper via toolDialect,
+  //                         so buildBody implementations may ignore options.tools
+  //   parseResponse(data) → {content, toolCalls[{id,name,arguments}], inputTokens, outputTokens}
+  //   buildMessages(systemPrompt, userPrompt)         → messages for Run
+  //   buildChatMessages(systemPrompt, history, msg)   → messages for Chat
+
   register(name, provider) {
     this._providers[name] = provider;
   },
@@ -12,18 +29,32 @@ const ProviderBase = {
   },
 
   // Unified HTTP helper. Providers flagged with needsProxy are routed through
-  // the Go backend to bypass webview CORS restrictions.
+  // the Go backend to bypass webview CORS restrictions. When an AbortSignal
+  // is provided, the request is registered under an id so abort cancels the
+  // in-flight Go HTTP call (real stop, not cooperative).
+  _nextReqId: 1,
+
   async http(name, url, options = {}) {
     const method = options.method || 'GET';
     const headers = options.headers || {};
     if (this._usesProxy(name)) {
+      if (options.signal) {
+        const id = this._nextReqId++;
+        const onAbort = () => window.go.main.App.HTTPCancel(id);
+        options.signal.addEventListener('abort', onAbort, { once: true });
+        try {
+          const resp = await window.go.main.App.HTTPFetchWithID(id, method, url, headers, options.body || '');
+          return this._proxyResponse(resp);
+        } catch (e) {
+          // Go returns "context canceled" when cancelled via HTTPCancel.
+          if (options.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+          throw e;
+        } finally {
+          options.signal.removeEventListener('abort', onAbort);
+        }
+      }
       const resp = await window.go.main.App.HTTPFetch(method, url, headers, options.body || '');
-      return {
-        ok: resp.status >= 200 && resp.status < 300,
-        status: resp.status,
-        json: async () => JSON.parse(resp.body),
-        text: async () => resp.body
-      };
+      return this._proxyResponse(resp);
     }
     return fetch(url, {
       method: method,
@@ -33,8 +64,93 @@ const ProviderBase = {
     });
   },
 
+  _proxyResponse(resp) {
+    return {
+      ok: resp.status >= 200 && resp.status < 300,
+      status: resp.status,
+      headers: resp.headers || {},
+      json: async () => JSON.parse(resp.body),
+      text: async () => resp.body
+    };
+  },
+
+  _retryAfterSeconds(response) {
+    const raw = response.headers && (response.headers['retry-after'] ?? response.headers['x-ratelimit-reset']);
+    const secs = Number(raw);
+    if (Number.isFinite(secs) && secs > 0 && secs <= 120) return secs;
+    return null;
+  },
+
+  // Retries transient failures (429/5xx) with exponential backoff,
+  // honoring the server's Retry-After header when present.
+  async httpWithRetry(name, url, options = {}, maxRetries = 3) {
+    let retryAfterMs = null;
+    for (let attempt = 0; ; attempt++) {
+      if (attempt > 0) {
+        const delayMs = retryAfterMs ?? Math.min(8000, 1000 * Math.pow(2, attempt - 1));
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        retryAfterMs = null;
+      }
+      if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const response = await this.http(name, url, options);
+      if (response.ok) return response;
+
+      const transient = response.status === 429 || response.status >= 500;
+      if (transient && attempt < maxRetries) {
+        const ra = this._retryAfterSeconds(response);
+        if (ra !== null) retryAfterMs = ra * 1000;
+        continue;
+      }
+      return response;
+    }
+  },
+
   get(name) {
     return this._providers[name] || null;
+  },
+
+  // ── Tool contract ────────────────────────────────────────────────
+  // Providers declare `toolDialect` ('openai' default | 'anthropic' | 'google').
+  // This wrapper guarantees that requested tools reach the wire regardless
+  // of the provider's own buildBody implementation.
+  buildBody(provider, model, messages, systemPrompt, options = {}) {
+    const body = provider.buildBody(model, messages, systemPrompt, options);
+    if (options.tools && options.tools.length > 0 && body.tools === undefined) {
+      console.warn(`Provider "${provider.name}" dropped tools from its body; injecting via dialect.`);
+      this.applyTools(body, options.tools, provider.toolDialect || 'openai');
+    }
+    return body;
+  },
+
+  applyTools(body, tools, dialect) {
+    if (!tools || tools.length === 0) return body;
+    if (dialect === 'google') {
+      body.tools = [{
+        functionDeclarations: tools.map(t => ({
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters
+        }))
+      }];
+    } else if (dialect === 'anthropic') {
+      body.tools = tools.map(t => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.parameters
+      }));
+      body.tool_choice = { type: 'auto' };
+    } else {
+      body.tools = tools.map(t => ({
+        type: 'function',
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters
+        }
+      }));
+      body.tool_choice = 'auto';
+    }
+    return body;
   },
 
   getAll() {
@@ -99,7 +215,41 @@ const ProviderBase = {
   getModels(providerName) {
     const provider = this.get(providerName);
     if (!provider) return [];
-    return provider._fetchedModels || provider.models || [];
+    const pruned = this._prunedModelKeys();
+    return (provider._fetchedModels || provider.models || [])
+      .filter(m => !pruned.has(`${providerName}:${m.id}`));
+  },
+
+  // Drops a model that the API itself rejected as unavailable from every
+  // catalog (fetched list, static fallback, cache) and remembers the
+  // decision across restarts so ghosts stop reappearing.
+  removeModel(providerName, modelId) {
+    const provider = this.get(providerName);
+    if (!provider) return;
+    if (provider._fetchedModels) {
+      provider._fetchedModels = provider._fetchedModels.filter(m => m.id !== modelId);
+    }
+    if (Array.isArray(provider.models)) {
+      provider.models = provider.models.filter(m => m.id !== modelId);
+    }
+    const cached = this._cache[providerName];
+    if (cached && Array.isArray(cached.data)) {
+      this._cache[providerName].data = cached.data.filter(m => m.id !== modelId);
+    }
+    try {
+      const key = `${providerName}:${modelId}`;
+      const pruned = new Set(JSON.parse(localStorage.getItem('modelfield-pruned-models') || '[]'));
+      pruned.add(key);
+      localStorage.setItem('modelfield-pruned-models', JSON.stringify([...pruned]));
+    } catch (e) { /* storage unavailable — in-memory prune still applies */ }
+  },
+
+  _prunedModelKeys() {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('modelfield-pruned-models') || '[]'));
+    } catch (e) {
+      return new Set();
+    }
   },
 
   setCache(providerName, data) {
@@ -219,63 +369,14 @@ const ProviderBase = {
   defineTools() {
     return [
       {
-        name: 'read_spec',
-        description: 'Read a spec file',
-        parameters: {
-          type: 'object',
-          properties: {
-            spec_name: { type: 'string', description: 'Spec name without .md' }
-          },
-          required: ['spec_name']
-        }
-      },
-      {
-        name: 'write_spec',
-        description: 'Create or update a spec file',
-        parameters: {
-          type: 'object',
-          properties: {
-            spec_name: { type: 'string', description: 'Spec name without .md' },
-            content: { type: 'string', description: 'Markdown content' }
-          },
-          required: ['spec_name', 'content']
-        }
-      },
-      {
-        name: 'rename_spec',
-        description: 'Rename a spec file',
-        parameters: {
-          type: 'object',
-          properties: {
-            old_name: { type: 'string', description: 'Current name without .md' },
-            new_name: { type: 'string', description: 'New name without .md' }
-          },
-          required: ['old_name', 'new_name']
-        }
-      },
-      {
-        name: 'delete_spec',
-        description: 'Delete a spec file',
-        parameters: {
-          type: 'object',
-          properties: {
-            spec_name: { type: 'string', description: 'Spec name without .md' }
-          },
-          required: ['spec_name']
-        }
-      },
-      {
-        name: 'list_specs',
-        description: 'List all specs in the project',
-        parameters: { type: 'object', properties: {} }
-      },
-      {
         name: 'read_file',
-        description: 'Read a file from disk',
+        description: 'Read a file from disk. Large files are truncated; use offset/limit to page through them.',
         parameters: {
           type: 'object',
           properties: {
-            path: { type: 'string', description: 'File path' }
+            path: { type: 'string', description: 'File path' },
+            offset: { type: 'integer', description: 'First line to read (1-based, default 1)' },
+            limit: { type: 'integer', description: 'Max lines to read (default 400). Prefer chunks over full reads of large files.' }
           },
           required: ['path']
         }
@@ -306,84 +407,40 @@ const ProviderBase = {
     ];
   },
 
+  // Caps a tool result before it enters the conversation. Every character
+  // here is re-sent on every subsequent agent round, so unbounded results
+  // burn rate limit budget quadratically.
+  _capToolResult(text, maxChars = 30000) {
+    const s = String(text ?? '');
+    if (s.length <= maxChars) return s;
+    return s.slice(0, maxChars)
+      + `\n\n[... TRUNCATED: ${s.length - maxChars} more characters. Re-call the tool with offset/limit or a narrower path.]`;
+  },
+
   _resolvePath(argsPath) {
     const project = App.state.projects.find(p => p.id === App.state.currentProject);
     const projectPath = project ? (project.path || '') : '';
-    if (!projectPath) return argsPath;
-
-    let path = argsPath || '';
-    if (!path) return projectPath;
-
-    path = path.replace(/\\/g, '/');
-    const normalized = projectPath.replace(/\\/g, '/');
-
-    if (path.startsWith('/')) {
-      if (path.startsWith(normalized)) return path;
-      return normalized + path;
-    }
-
-    if (path === '.' || path === './') return normalized;
-
-    return normalized + '/' + path;
+    return PathGuard.resolveProjectPath(projectPath, argsPath);
   },
 
   _isPathSafe(resolvedPath) {
     const project = App.state.projects.find(p => p.id === App.state.currentProject);
     const projectPath = project ? (project.path || '') : '';
-    if (!projectPath) return true;
+    return PathGuard.isPathInsideProject(projectPath, resolvedPath);
+  },
 
-    const normalized = resolvedPath.replace(/\\/g, '/');
-    const base = projectPath.replace(/\\/g, '/');
-    return normalized.startsWith(base);
+  _sliceLines(content, offset, limit) {
+    const text = content || '';
+    const firstLine = Math.max(1, Number(offset) || 1);
+    const maxLines = Math.max(1, Math.min(Number(limit) || 400, 2000));
+    const lines = text.split('\n');
+    const slice = lines.slice(firstLine - 1, firstLine - 1 + maxLines).join('\n');
+    if (firstLine === 1 && maxLines >= lines.length) return text;
+    return `[lines ${firstLine}–${firstLine - 1 + slice.split('\n').length} of ${lines.length}]\n${slice}`;
   },
 
   async executeTool(name, args) {
     switch (name) {
-      case 'read_spec': {
-        const file = App.state.files.find(f => f.name === args.spec_name && !f.trashed);
-        return file ? file.content : `Error: spec "${args.spec_name}" not found`;
-      }
-      case 'write_spec': {
-        let target = App.state.files.find(f => f.name === args.spec_name && !f.trashed);
-        if (target) {
-          target.content = args.content;
-          target.modified = new Date().toISOString();
-        } else {
-          App.state.files.push({
-            id: Date.now().toString(),
-            projectId: App.state.currentProject,
-            name: args.spec_name,
-            content: args.content,
-            created: new Date().toISOString(),
-            modified: new Date().toISOString(),
-            trashed: false
-          });
-        }
-        await App.saveState();
-        return `Successfully ${target ? 'updated' : 'created'} spec "${args.spec_name}"`;
-      }
-      case 'rename_spec': {
-        const file = App.state.files.find(f => f.name === args.old_name && !f.trashed);
-        if (!file) return `Error: spec "${args.old_name}" not found`;
-        const exists = App.state.files.find(f => f.name === args.new_name && !f.trashed);
-        if (exists) return `Error: spec "${args.new_name}" already exists`;
-        file.name = args.new_name;
-        file.modified = new Date().toISOString();
-        await App.saveState();
-        return `Successfully renamed "${args.old_name}" to "${args.new_name}"`;
-      }
-      case 'delete_spec': {
-        const file = App.state.files.find(f => f.name === args.spec_name && !f.trashed);
-        if (!file) return `Error: spec "${args.spec_name}" not found`;
-        file.trashed = true;
-        file.trashedAt = new Date().toISOString();
-        await App.saveState();
-        return `Successfully moved "${args.spec_name}" to trash`;
-      }
-      case 'list_specs': {
-        const specs = App.getProjectFiles().map(f => f.name);
-        return JSON.stringify(specs);
-      }
       case 'read_file': {
         if (App.isWails) {
           try {
@@ -392,7 +449,7 @@ const ProviderBase = {
               return 'Error: access denied. Path is outside the project directory.';
             }
             const content = await window.go.main.App.ReadFileContent(resolvedPath);
-            return content || '';
+            return this._capToolResult(this._sliceLines(content, args.offset, args.limit));
           } catch (e) {
             return `Error reading file: ${e.message}`;
           }
@@ -422,7 +479,7 @@ const ProviderBase = {
               return 'Error: access denied. Path is outside the project directory.';
             }
             const entries = await window.go.main.App.ReadProjectDir(resolvedPath);
-            return JSON.stringify(entries);
+            return this._capToolResult(JSON.stringify(entries), 15000);
           } catch (e) {
             return `Error listing directory: ${e.message}`;
           }

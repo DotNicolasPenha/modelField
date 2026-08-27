@@ -22,7 +22,14 @@ const Models = {
       this.showModelsDropdown(e, 'finished');
     });
 
-    document.getElementById('btn-start-run')?.addEventListener('click', () => {
+    document.getElementById('btn-start-run')?.addEventListener('click', (e) => {
+      // Causality anchor: the execution panel will animate in from the
+      // spot where "Start Run" was clicked.
+      const rect = e.currentTarget.getBoundingClientRect();
+      this._runOrigin = {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      };
       this.confirmStartRun();
     });
 
@@ -34,9 +41,62 @@ const Models = {
       this.showRunModal();
     });
 
+    document.getElementById('btn-send-chat')?.addEventListener('click', () => {
+      this.sendChatMessage();
+    });
+
+    document.getElementById('btn-stop-chat')?.addEventListener('click', () => {
+      if (this._currentAbortController) {
+        this._currentAbortController.abort();
+      }
+    });
+
+    document.getElementById('chat-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.sendChatMessage();
+    });
+
+    document.getElementById('btn-edit-chat-meta')?.addEventListener('click', () => {
+      this._editRunMeta();
+    });
+
     this.timeInterval = setInterval(() => this.updateTimes(), 30000);
+    this._restoreRunningFromHistory();
     this.render();
+    this.updateUsageSummary();
     this._fetchModelsOnStartup();
+  },
+
+  // The running list is in-memory; after an app restart, repopulate it
+  // from persisted history so the side section doesn't come up empty.
+  _restoreRunningFromHistory() {
+    if (this.running.length > 0) return;
+    const MAX_RESTORED = 15;
+    this.running = (App.state.runHistory || []).slice(0, MAX_RESTORED).map(r => ({
+      id: r.id,
+      model: { id: r.modelId, name: r.modelName },
+      context: this._contextFromRecord(r),
+      spec: r.specName || '',
+      specNames: r.specNames || [],
+      filePaths: r.filePaths || [],
+      prompt: r.prompt || '',
+      title: r.title || '',
+      tags: r.tags || [],
+      status: r.status === 'running' ? 'error' : (r.status || 'finished'),
+      started: r.started,
+      finished: r.finished,
+      lastAccessed: null,
+      result: r.result,
+      metrics: {
+        inputTokens: r.inputTokens,
+        outputTokens: r.outputTokens,
+        duration: r.duration,
+        cost: r.cost,
+        resultSize: r.resultSize,
+        toolCalls: r.toolCalls,
+        iterations: r.iterations
+      },
+      transcript: r.messages || undefined
+    }));
   },
 
   async _fetchModelsOnStartup() {
@@ -90,6 +150,23 @@ const Models = {
     }
 
     return groups;
+  },
+
+  updateUsageSummary() {
+    const el = document.getElementById('usage-summary');
+    if (!el) return;
+    const today = new Date().toDateString();
+    const todays = (App.state.runHistory || []).filter(r =>
+      r.status === 'finished' && r.started && new Date(r.started).toDateString() === today
+    );
+    if (todays.length === 0) {
+      el.textContent = '';
+      return;
+    }
+    const tokens = todays.reduce((sum, r) => sum + (r.inputTokens || 0) + (r.outputTokens || 0), 0);
+    const cost = todays.reduce((sum, r) => sum + (r.cost || 0), 0);
+    el.textContent = `${this.formatTokens(tokens)} · ${this.formatCost(cost)} today`;
+    el.title = `${todays.length} run(s) today`;
   },
 
   timeAgo(dateString) {
@@ -169,10 +246,34 @@ const Models = {
   _createModelItem(model, providerName) {
     const item = this._createEl('div', 'model-item', { 'data-model-id': model.id });
     const info = this._createEl('div', 'model-info');
-    info.appendChild(this._createEl('div', 'model-name', { text: model.name }));
+    const alias = this.getAlias(model.id);
+    const nameEl = this._createEl('div', 'model-name');
+    nameEl.textContent = alias?.customName || model.name;
+    if (alias?.customName) nameEl.title = model.name;
+    info.appendChild(nameEl);
+
+    if (alias && alias.tags && alias.tags.length > 0) {
+      const tagsEl = this._createEl('div', 'model-tags');
+      for (const tag of alias.tags) {
+        tagsEl.appendChild(this._createEl('span', 'history-item-tag', { text: tag }));
+      }
+      info.appendChild(tagsEl);
+    }
+
     const desc = (model.description || providerName).substring(0, 50);
     info.appendChild(this._createEl('div', 'model-detail model-detail-truncated', { text: desc }));
     item.appendChild(info);
+
+    const editBtn = this._createEl('button', 'model-item-edit');
+    editBtn.title = 'Title & tags';
+    editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    editBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await this.editModelAlias(model);
+      this.showRunModal();
+    });
+    item.appendChild(editBtn);
+
     const btn = this._createEl('button', 'btn btn-primary', { text: 'Run' });
     Object.assign(btn.style, { height: '32px', fontSize: '12px', padding: '0 12px' });
     btn.addEventListener('click', (e) => {
@@ -187,6 +288,53 @@ const Models = {
     });
     item.appendChild(btn);
     return item;
+  },
+
+  async editModelAlias(model) {
+    const existing = this.getAlias(model.id);
+    const name = await Modals.prompt(
+      `Display name for ${model.name}`,
+      existing?.customName || '',
+      null
+    );
+    if (name === null) return;
+
+    const tagsInput = await Modals.prompt(
+      'Tags (comma separated)',
+      (existing?.tags || []).join(', '),
+      null
+    );
+    if (tagsInput === null) return;
+
+    const customName = name.trim();
+    const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+
+    if (!customName && (!existing || tags.length === 0)) {
+      App.state.modelAliases = App.state.modelAliases.filter(a => a.modelId !== model.id);
+    } else if (existing) {
+      existing.customName = customName;
+      existing.tags = tags;
+    } else {
+      App.state.modelAliases.push({ modelId: model.id, customName, tags });
+    }
+
+    await App.saveModelAliases();
+    Notifications.show(customName ? `Alias saved for ${model.name}` : `Alias removed for ${model.name}`);
+
+    // Refresh every surface that renders model names: the running list
+    // (sidebar), open history list and any active dropdowns.
+    this.render();
+    if (document.getElementById('modal-history')?.classList.contains('active')) {
+      const query = document.getElementById('history-search')?.value.toLowerCase().trim() || '';
+      this.renderHistory(query);
+    }
+    document.querySelectorAll('.dropdown-menu.active .dropdown-item').forEach(item => {
+      const aliasNow = this.getAlias(model.id);
+      const nameEl = item.querySelector('.dropdown-item-name');
+      if (nameEl && item.dataset.modelId === model.id && aliasNow) {
+        nameEl.textContent = aliasNow.customName || model.name;
+      }
+    });
   },
 
   _createProviderGroup(group) {
@@ -213,13 +361,21 @@ const Models = {
   },
 
   showRunModal() {
+    FileExplorer.closePopover?.();
     const body = document.getElementById('modal-run-body');
     if (!body) return;
     body.innerHTML = '';
 
     const groups = this.getModelsByProvider();
     const hasAnyModels = groups.some(g => g.models.length > 0);
-    const recents = App.state.recentModels || [];
+
+    // Drop pruned/dead models from recents (both render and storage).
+    const availableIds = new Set(this.getAvailableModels().map(m => m.id));
+    const recents = (App.state.recentModels || []).filter(rm => availableIds.has(rm.id));
+    if (recents.length !== (App.state.recentModels || []).length) {
+      App.state.recentModels = recents;
+      App.saveRecentModels?.();
+    }
 
     if (!hasAnyModels && recents.length === 0) {
       body.appendChild(this._createEl('p', 'text-muted', { text: 'Configure an API key in Settings to use models.' }));
@@ -241,7 +397,7 @@ const Models = {
           tabsBar.querySelectorAll('.run-tab').forEach(t => t.classList.remove('active'));
           btn.classList.add('active');
           body.querySelectorAll('.run-tab-panel').forEach(panel => {
-            panel.style.display = panel.dataset.tab === tab.id ? '' : 'none';
+            panel.classList.toggle('is-hidden', panel.dataset.tab !== tab.id);
           });
         });
         tabsBar.appendChild(btn);
@@ -269,7 +425,7 @@ const Models = {
     const activeTabId = tabs[0]?.id;
     if (activeTabId) {
       body.querySelectorAll('.run-tab-panel').forEach(panel => {
-        panel.style.display = panel.dataset.tab === activeTabId ? '' : 'none';
+        panel.classList.toggle('is-hidden', panel.dataset.tab !== activeTabId);
       });
     }
 
@@ -278,7 +434,7 @@ const Models = {
       const activeTab = body.querySelector('.run-tab.active')?.dataset.tab;
       body.querySelectorAll('.run-tab-panel').forEach(panel => {
         if (activeTab && panel.dataset.tab !== activeTab) {
-          panel.style.display = 'none';
+          panel.classList.add('is-hidden');
           return;
         }
         let hasVisible = false;
@@ -286,10 +442,10 @@ const Models = {
           const name = item.querySelector('.model-name')?.textContent.toLowerCase() || '';
           const detail = item.querySelector('.model-detail')?.textContent.toLowerCase() || '';
           const match = !query || name.includes(query) || detail.includes(query);
-          item.style.display = match ? '' : 'none';
+          item.classList.toggle('is-hidden', !match);
           if (match) hasVisible = true;
         });
-        panel.style.display = hasVisible ? '' : 'none';
+        panel.classList.toggle('is-hidden', !hasVisible);
       });
     });
 
@@ -308,10 +464,15 @@ const Models = {
     const context = FileExplorer.getContext();
     if (contextList) {
       if (context.length === 0) {
-        contextList.innerHTML = '<div class="text-muted" style="font-size: 12px;">No context selected. Select specs or files from the sidebar.</div>';
+        contextList.innerHTML = '<div class="text-muted" style="font-size: 12px;">No context selected. Select files from the sidebar.</div>';
       } else {
+        const icons = {
+          spec: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+          file: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
+          folder: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+        };
         contextList.innerHTML = context.map(c =>
-          `<div class="run-context-item"><span class="run-context-item-icon">${c.type === 'spec' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>'}</span> ${c.name} <span class="run-context-badge">${c.type}</span></div>`
+          `<div class="run-context-item"><span class="run-context-item-icon">${icons[c.type] || icons.file}</span> ${c.name}${c.type === 'folder' ? '/' : ''} <span class="run-context-badge">${c.type}</span></div>`
         ).join('');
       }
     }
@@ -331,15 +492,10 @@ const Models = {
     if (!model) return;
 
     const context = FileExplorer.getContext();
-    const specs = context.filter(c => c.type === 'spec');
     const promptInput = document.getElementById('input-run-prompt');
     const prompt = promptInput ? promptInput.value.trim() : '';
     const errorEl = document.getElementById('run-validation-error');
 
-    if (specs.length === 0) {
-      if (errorEl) errorEl.textContent = 'Select at least one spec';
-      return;
-    }
     if (!prompt) {
       if (errorEl) errorEl.textContent = 'Write a prompt';
       return;
@@ -353,20 +509,20 @@ const Models = {
 
   getCurrentSpecName() {
     const file = App.state.files.find(f => f.id === App.state.activeFile);
-    return file ? file.name : 'spec';
+    return file ? file.name : 'untitled';
   },
 
   async executeRun(model, context, prompt) {
-    const specNames = context.filter(c => c.type === 'spec').map(c => c.name.replace(/\.md$/, ''));
+    const fileContextNames = context.filter(c => c.type !== 'folder').map(c => c.name.replace(/\.md$/, ''));
+    const folderCount = context.filter(c => c.type === 'folder').length;
     const filePaths = context.filter(c => c.type === 'file').map(c => c.path);
-    const specName = specNames[0] || 'spec';
 
     const run = {
       id: Date.now().toString(),
       model: model,
       context: context,
-      spec: specName,
-      specNames: specNames,
+      spec: fileContextNames[0] || '',
+      specNames: fileContextNames,
       filePaths: filePaths,
       prompt: prompt,
       status: 'running',
@@ -380,7 +536,9 @@ const Models = {
     this.running.push(run);
     this.render();
     App.updateCounts();
-    Notifications.show(`Running ${this.getDisplayName(model)} on ${specNames.join(', ')}`);
+    Notifications.show(context.length > 0
+      ? `Running ${this.getDisplayName(model)} on ${fileContextNames.join(', ')}${folderCount > 0 ? ` + ${folderCount} folder${folderCount > 1 ? 's' : ''}` : ''}`
+      : `Running ${this.getDisplayName(model)}`);
 
     requestAnimationFrame(() => {
       const el = document.querySelector(`.model-item[data-run-id="${run.id}"]`);
@@ -397,7 +555,7 @@ const Models = {
     const abortController = new AbortController();
     this._currentAbortController = abortController;
     const btnStop = document.getElementById('btn-stop-chat');
-    if (btnStop) btnStop.style.display = '';
+    if (btnStop) btnStop.classList.remove('is-hidden');
 
     try {
       const result = await API.sendRun(model, context, prompt, (toolEvent) => {
@@ -431,12 +589,17 @@ const Models = {
         this.chatHistory.push({ role: 'assistant', content: result.content });
       }
 
+      run.transcript = [
+        { role: 'user', content: prompt },
+        { role: 'assistant', content: result.content }
+      ];
+
       this._finishRun(run);
     } catch (error) {
       this._removeChatLoading();
       this._currentAbortController = null;
       const btnStop = document.getElementById('btn-stop-chat');
-      if (btnStop) btnStop.style.display = 'none';
+      if (btnStop) btnStop.classList.add('is-hidden');
 
       if (error.name === 'AbortError') {
         run.status = 'cancelled';
@@ -472,6 +635,31 @@ const Models = {
     }
   },
 
+  _describeRunContext(run) {
+    const names = (run.specNames || []).filter(Boolean);
+    const folders = (run.context || []).filter(c => c.type === 'folder').map(c => c.name + '/');
+    const parts = [...names, ...folders];
+    return parts.length > 0 ? parts.join(', ') : 'prompt';
+  },
+
+  // Context descriptors small enough to persist in history: spec contents
+  // are re-resolved from App.state.files on replay.
+  _lightContext(context) {
+    return (context || []).map(c => ({
+      type: c.type,
+      name: c.name,
+      path: c.path || undefined
+    }));
+  },
+
+  _contextFromRecord(record) {
+    return (record.context || []).map(c => {
+      if (c.type !== 'spec') return { ...c };
+      const file = App.state.files.find(f => f.name + '.md' === c.name && !f.trashed);
+      return file ? { name: c.name, content: file.content, type: 'spec' } : null;
+    }).filter(Boolean);
+  },
+
   _finishRun(run) {
     const alias = this.getAlias(run.model.id);
     const record = {
@@ -479,6 +667,8 @@ const Models = {
       modelId: run.model.id,
       modelName: run.model.name,
       alias: alias ? alias.customName : '',
+      title: run.title || '',
+      tags: run.tags || [],
       specName: run.spec,
       specNames: run.specNames || [run.spec],
       filePaths: run.filePaths || [],
@@ -487,6 +677,11 @@ const Models = {
       started: run.started,
       finished: run.finished,
       result: run.result,
+      messages: run.transcript || [
+        { role: 'user', content: run.prompt || '' },
+        { role: 'assistant', content: run.result }
+      ],
+      context: this._lightContext(run.context),
       inputTokens: run.metrics?.inputTokens || 0,
       outputTokens: run.metrics?.outputTokens || 0,
       duration: run.metrics?.duration || 0,
@@ -500,7 +695,8 @@ const Models = {
 
     this.render();
     App.updateCounts();
-    Notifications.show(`${this.getDisplayName(run.model)} finished processing ${(run.specNames || [run.spec]).join(', ')}`);
+    this.updateUsageSummary();
+    Notifications.show(`${this.getDisplayName(run.model)} finished processing ${this._describeRunContext(run)}`);
 
     const messagesEl = document.getElementById('chat-messages');
     if (messagesEl) {
@@ -532,130 +728,9 @@ const Models = {
     });
   },
 
-  _showChatLoading(container, modelName) {
-    if (!container) return;
-    const el = document.createElement('div');
-    el.className = 'chat-msg chat-msg-loading';
-    el.id = 'chat-loading';
-    el.innerHTML = `
-      <div class="chat-spinner"></div>
-      <span>${modelName} is thinking...</span>
-    `;
-    container.appendChild(el);
-    container.scrollTop = container.scrollHeight;
-  },
-
-  _removeChatLoading() {
-    document.getElementById('chat-loading')?.remove();
-  },
-
-  _renderToolEvent(container, event) {
-    if (!container) return;
-    if (event.type === 'call') {
-      const el = document.createElement('div');
-      el.className = 'chat-tool-call';
-      el.innerHTML = `
-        <div class="chat-tool-header">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          <span class="chat-tool-name">${ProviderBase.escapeHtml(event.name)}</span>
-          <span class="chat-tool-status">executing...</span>
-        </div>
-        <div class="chat-tool-args">${ProviderBase.escapeHtml(JSON.stringify(event.arguments, null, 2))}</div>
-      `;
-      container.appendChild(el);
-      container.scrollTop = container.scrollHeight;
-    } else if (event.type === 'result') {
-      const existing = container.querySelectorAll('.chat-tool-call');
-      const lastTool = existing[existing.length - 1];
-      if (lastTool) {
-        const statusEl = lastTool.querySelector('.chat-tool-status');
-        if (statusEl) {
-          const isError = event.result && event.result.startsWith && event.result.startsWith('Error');
-          statusEl.textContent = isError ? 'error' : 'done';
-          statusEl.classList.add(isError ? 'chat-tool-error' : 'chat-tool-success');
-        }
-      }
-    }
-  },
-
   _estimateTokens(text) {
     if (!text) return 0;
     return Math.ceil(text.length / 4);
-  },
-
-  _updateContextBar() {
-    const run = this.currentRun;
-    if (!run) return;
-
-    const basePrompt = API.buildSystemPrompt([]);
-    const systemTokens = this._estimateTokens(basePrompt);
-
-    let contextTokens = 0;
-    for (const item of (run.context || [])) {
-      contextTokens += this._estimateTokens(item.content || '');
-    }
-
-    let historyTokens = 0;
-    for (const msg of this.chatHistory) {
-      historyTokens += this._estimateTokens(msg.content || '');
-    }
-
-    const totalTokens = systemTokens + contextTokens + historyTokens;
-    const maxTokens = 128000;
-    const pct = Math.min((totalTokens / maxTokens) * 100, 100);
-
-    const tokensEl = document.getElementById('chat-context-tokens');
-    const fillEl = document.getElementById('chat-context-bar-fill');
-    const sysEl = document.getElementById('ctx-system-tokens');
-    const ctxEl = document.getElementById('ctx-context-tokens');
-    const histEl = document.getElementById('ctx-history-tokens');
-    const maxEl = document.getElementById('ctx-max-tokens');
-
-    if (tokensEl) tokensEl.textContent = `${this.formatTokens(totalTokens)} / ${this.formatTokens(maxTokens)} tokens`;
-    if (fillEl) {
-      fillEl.style.width = pct + '%';
-      fillEl.className = 'chat-context-bar-fill';
-      if (pct > 80) fillEl.classList.add('danger');
-      else if (pct > 50) fillEl.classList.add('warning');
-    }
-    if (sysEl) sysEl.textContent = this.formatTokens(systemTokens);
-    if (ctxEl) ctxEl.textContent = this.formatTokens(contextTokens);
-    if (histEl) histEl.textContent = this.formatTokens(historyTokens);
-    if (maxEl) maxEl.textContent = this.formatTokens(maxTokens);
-  },
-
-  _initContextToggle() {
-    const toggle = document.getElementById('chat-context-toggle');
-    const details = document.getElementById('chat-context-details');
-    if (toggle && details) {
-      toggle.addEventListener('click', () => {
-        const isOpen = details.style.display !== 'none';
-        details.style.display = isOpen ? 'none' : '';
-        toggle.classList.toggle('open', !isOpen);
-      });
-    }
-  },
-
-  _updateChatMetrics(run) {
-    const metricsInline = document.getElementById('chat-metrics-inline');
-    if (!metricsInline || !run.metrics) return;
-
-    metricsInline.innerHTML = `
-      <span class="chat-metric-item">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-        ${this.formatTokens(run.metrics.inputTokens)} in · ${this.formatTokens(run.metrics.outputTokens)} out
-      </span>
-      <span class="chat-metric-item">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        ${this.formatDuration(run.metrics.duration)}
-      </span>
-      <span class="chat-metric-item">
-        ${this.formatCost(run.metrics.cost)}
-      </span>
-      <span class="chat-metric-item">
-        ${this.formatSize(run.metrics.resultSize)}
-      </span>
-    `;
   },
 
   removeRun(runId) {
@@ -717,9 +792,9 @@ const Models = {
       return `
         <div class="model-item" data-run-id="${run.id}">
           <div class="model-info">
-            <div class="model-name">${alias ? alias.customName : run.model.name}</div>
+            <div class="model-name">${run.title || (alias ? alias.customName : run.model.name)}</div>
             <div class="model-alias">${run.model.name}</div>
-            <div class="model-detail">${run.spec}.md</div>
+            <div class="model-detail">${run.spec ? run.spec + '.md' : 'prompt run'}</div>
           </div>
           <span class="model-time" data-time="${timeSource}">${timeText}</span>
           <span class="model-status ${statusClass}">${run.status}</span>
@@ -805,230 +880,11 @@ const Models = {
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
-    dropdown.style.left = rect.left + 'px';
-    dropdown.style.top = rect.bottom + 4 + 'px';
+    Modals.positionPopover(dropdown, rect.left, rect.bottom, 4);
     dropdown.classList.add('active');
     overlay.classList.add('active');
 
     overlay.onclick = () => Files.hideDropdowns();
   },
 
-  openChat(run) {
-    run.lastAccessed = new Date().toISOString();
-    this.currentRun = run;
-
-    if (run.result && !run.chatHistory) {
-      this.chatHistory = [
-        { role: 'assistant', content: run.result }
-      ];
-    } else if (!run.chatHistory) {
-      this.chatHistory = [];
-    } else {
-      this.chatHistory = [...run.chatHistory];
-    }
-
-    const title = document.getElementById('chat-title');
-    const subtitle = document.getElementById('chat-subtitle');
-    const metricsInline = document.getElementById('chat-metrics-inline');
-    const messages = document.getElementById('chat-messages');
-    const input = document.getElementById('chat-input');
-
-    const displayName = this.getDisplayName(run.model);
-    if (title) title.textContent = displayName;
-    if (subtitle) subtitle.textContent = run.model.name;
-
-    if (metricsInline) {
-      if (run.metrics) {
-        metricsInline.innerHTML = `
-          <span class="chat-metric-item">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-            ${this.formatTokens(run.metrics.inputTokens)} in · ${this.formatTokens(run.metrics.outputTokens)} out
-          </span>
-          <span class="chat-metric-item">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            ${this.formatDuration(run.metrics.duration)}
-          </span>
-          <span class="chat-metric-item">
-            ${this.formatCost(run.metrics.cost)}
-          </span>
-          <span class="chat-metric-item">
-            ${this.formatSize(run.metrics.resultSize)}
-          </span>
-        `;
-      } else {
-        metricsInline.innerHTML = '';
-      }
-    }
-
-    if (messages) {
-      if (run.result) {
-        messages.innerHTML = `
-          <div class="chat-msg">
-            <div class="chat-msg-author">${displayName}</div>
-            ${ProviderBase.formatMarkdown(run.result)}
-          </div>
-        `;
-      } else {
-        messages.innerHTML = '';
-      }
-    }
-    if (input) {
-      input.value = '';
-      input.disabled = false;
-      input.classList.remove('chat-input-disabled');
-    }
-
-    this._initContextToggle();
-    this._updateContextBar();
-    Modals.open('modal-chat');
-  },
-
-  showHistory() {
-    const list = document.getElementById('history-list');
-    const searchInput = document.getElementById('history-search');
-    if (!list) return;
-
-    this.renderHistory();
-
-    if (searchInput) {
-      searchInput.value = '';
-      searchInput.addEventListener('input', () => {
-        this.renderHistory(searchInput.value.toLowerCase().trim());
-      });
-    }
-
-    Modals.open('modal-history');
-  },
-
-  renderHistory(query = '') {
-    const list = document.getElementById('history-list');
-    if (!list) return;
-
-    let history = App.state.runHistory;
-
-    if (query) {
-      history = history.filter(r => {
-        const name = (r.alias || r.modelName).toLowerCase();
-        const spec = r.specName.toLowerCase();
-        return name.includes(query) || spec.includes(query);
-      });
-    }
-
-    if (history.length === 0) {
-      list.innerHTML = '<div class="history-empty">No run history</div>';
-      return;
-    }
-
-    list.innerHTML = history.map(record => {
-      const displayName = record.alias || record.modelName;
-      const timeText = this.timeAgo(record.finished || record.started);
-      return `
-        <div class="history-item" data-record-id="${record.id}">
-          <div class="history-item-info">
-            <div class="history-item-name">${displayName}</div>
-            <div class="history-item-alias">${record.modelName}</div>
-            <div class="history-item-spec">${record.specName}.md</div>
-          </div>
-          <div class="history-item-metrics">
-            <span>${this.formatTokens(record.inputTokens + record.outputTokens)}</span>
-            <span>${this.formatDuration(record.duration)}</span>
-            <span>${this.formatCost(record.cost)}</span>
-          </div>
-          <span class="history-item-time">${timeText}</span>
-          <button class="history-item-delete" title="Delete">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      `;
-    }).join('');
-
-    list.querySelectorAll('.history-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        if (e.target.closest('.history-item-delete')) return;
-        const recordId = item.dataset.recordId;
-        const record = App.state.runHistory.find(r => r.id === recordId);
-        if (record) this.openHistoryChat(record);
-      });
-    });
-
-    list.querySelectorAll('.history-item-delete').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const recordId = btn.closest('.history-item').dataset.recordId;
-        this.deleteHistoryRecord(recordId);
-      });
-    });
-  },
-
-  deleteHistoryRecord(recordId) {
-    App.state.runHistory = App.state.runHistory.filter(r => r.id !== recordId);
-    App.saveRunHistory();
-    this.renderHistory();
-    Notifications.show('History record deleted');
-  },
-
-  openHistoryChat(record) {
-    const displayName = record.alias || record.modelName;
-
-    const title = document.getElementById('chat-title');
-    const subtitle = document.getElementById('chat-subtitle');
-    const metricsInline = document.getElementById('chat-metrics-inline');
-    const messages = document.getElementById('chat-messages');
-    const input = document.getElementById('chat-input');
-
-    this.currentRun = {
-      model: { id: record.modelId, name: record.modelName },
-      result: record.result,
-      metrics: {
-        inputTokens: record.inputTokens,
-        outputTokens: record.outputTokens,
-        duration: record.duration,
-        cost: record.cost,
-        resultSize: record.resultSize
-      }
-    };
-
-    this.chatHistory = [
-      { role: 'assistant', content: record.result }
-    ];
-
-    if (title) title.textContent = displayName;
-    if (subtitle) subtitle.textContent = record.modelName;
-
-    if (metricsInline) {
-      metricsInline.innerHTML = `
-        <span class="chat-metric-item">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-          ${this.formatTokens(record.inputTokens)} in · ${this.formatTokens(record.outputTokens)} out
-        </span>
-        <span class="chat-metric-item">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          ${this.formatDuration(record.duration)}
-        </span>
-        <span class="chat-metric-item">
-          ${this.formatCost(record.cost)}
-        </span>
-        <span class="chat-metric-item">
-          ${this.formatSize(record.resultSize)}
-        </span>
-      `;
-    }
-
-    if (messages) {
-      messages.innerHTML = `
-        <div class="chat-msg">
-          <div class="chat-msg-author">${displayName}</div>
-          ${ProviderBase.formatMarkdown(record.result)}
-        </div>
-      `;
-    }
-    if (input) {
-      input.value = '';
-      input.disabled = false;
-      input.classList.remove('chat-input-disabled');
-    }
-
-    Modals.close('modal-history');
-    Modals.open('modal-chat');
-  }
 };

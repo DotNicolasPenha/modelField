@@ -1,0 +1,180 @@
+/* ── Dropdown Overlay ── */
+
+.dropdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dropdown);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--duration-normal) var(--ease), visibility var(--duration-normal);
+}
+
+.dropdown-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ── Dropdown Menu ── */
+
+.dropdown-menu {
+  position: fixed;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  min-width: 200px;
+  max-width: 320px;
+  max-height: 320px;
+  z-index: var(--z-popover);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px) scale(0.98);
+  transform-origin: top left;
+  transition: opacity var(--duration-medium) var(--ease-enter), visibility var(--duration-medium), transform var(--duration-medium) var(--ease-enter);
+  box-shadow: var(--shadow-popover);
+}
+
+.dropdown-menu.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  animation: dropdownMenuEnter 320ms var(--ease-spring) both;
+}
+
+@keyframes dropdownMenuEnter {
+  0% {
+    opacity: 0;
+    transform: perspective(900px) translateY(-10px) scale(0.9) rotateX(5deg);
+    filter: blur(3px);
+    box-shadow: var(--shadow-none);
+  }
+  60% {
+    opacity: 1;
+    transform: perspective(900px) translateY(2px) scale(1.015) rotateX(-0.4deg);
+    filter: blur(0);
+    box-shadow: var(--shadow-xl);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(900px) translateY(0) scale(1) rotateX(0deg);
+    filter: blur(0);
+    box-shadow: var(--shadow-popover);
+  }
+}
+
+/* ── Dropdown Parts ── */
+
+.dropdown-header {
+  padding: var(--space-3) var(--space-7);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-7);
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease),
+              color var(--duration-fast) var(--ease),
+              transform var(--duration-fast) var(--ease);
+}
+
+.dropdown-item:hover {
+  background: var(--overlay-hover);
+  color: var(--text-primary);
+  transform: translateX(2px);
+}
+
+.dropdown-item-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-item-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.dropdown-item-alias {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-item-status {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+  margin-left: var(--space-3);
+}
+
+.dropdown-empty {
+  padding: var(--space-7);
+  font-size: var(--font-size-md);
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.dropdown-item-new {
+  border-top: 1px solid var(--border);
+  color: var(--text-primary) !important;
+  font-weight: 500;
+}
+
+.dropdown-item.active {
+  background: var(--overlay-active);
+  color: var(--text-primary);
+}
+
+/* ── Dropdown Actions ── */
+
+.dropdown-item-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: var(--space-2);
+}
+
+.dropdown-item-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background var(--duration-normal) var(--ease),
+              color var(--duration-normal) var(--ease);
+  flex-shrink: 0;
+}
+
+.dropdown-item-action:hover {
+  background: var(--overlay-hover);
+  color: var(--text-primary);
+}
+
+.dropdown-item-action.danger:hover {
+  color: var(--danger);
+}

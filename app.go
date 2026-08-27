@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -28,8 +29,9 @@ type File struct {
 }
 
 type ModelAlias struct {
-	ModelID    string `json:"modelId"`
-	CustomName string `json:"customName"`
+	ModelID    string   `json:"modelId"`
+	CustomName string   `json:"customName"`
+	Tags       []string `json:"tags"`
 }
 
 type ModelInfo struct {
@@ -51,25 +53,29 @@ type ModelsCache struct {
 }
 
 type RunRecord struct {
-	ID             string   `json:"id"`
-	ModelID        string   `json:"modelId"`
-	ModelName      string   `json:"modelName"`
-	Alias          string   `json:"alias"`
-	SpecName      string   `json:"specName"`
-	SpecNames      []string `json:"specNames"`
-	FilePaths      []string `json:"filePaths"`
-	Prompt         string   `json:"prompt"`
-	Status         string   `json:"status"`
-	Started        string   `json:"started"`
-	Finished       string   `json:"finished"`
-	Result         string   `json:"result"`
-	InputTokens    int      `json:"inputTokens"`
-	OutputTokens   int      `json:"outputTokens"`
-	Duration       float64  `json:"duration"`
-	Cost           float64  `json:"cost"`
-	ResultSize     int      `json:"resultSize"`
-	ToolCalls      int      `json:"toolCalls"`
-	Iterations     int      `json:"iterations"`
+	ID             string                   `json:"id"`
+	ModelID        string                   `json:"modelId"`
+	ModelName      string                   `json:"modelName"`
+	Alias          string                   `json:"alias"`
+	Title          string                   `json:"title"`
+	Tags           []string                 `json:"tags"`
+	SpecName       string                   `json:"specName"`
+	SpecNames      []string                 `json:"specNames"`
+	FilePaths      []string                 `json:"filePaths"`
+	Prompt         string                   `json:"prompt"`
+	Status         string                   `json:"status"`
+	Started        string                   `json:"started"`
+	Finished       string                   `json:"finished"`
+	Result         string                   `json:"result"`
+	Messages       []map[string]interface{} `json:"messages"`
+	Context        []map[string]interface{} `json:"context"`
+	InputTokens    int                      `json:"inputTokens"`
+	OutputTokens   int                      `json:"outputTokens"`
+	Duration       float64                  `json:"duration"`
+	Cost           float64                  `json:"cost"`
+	ResultSize     int                      `json:"resultSize"`
+	ToolCalls      int                      `json:"toolCalls"`
+	Iterations     int                      `json:"iterations"`
 }
 
 type CheckItem struct {
@@ -362,12 +368,19 @@ func (a *App) GetFileInfo(path string) FileInfo {
 }
 
 type HTTPResponse struct {
-	Status int    `json:"status"`
-	Body   string `json:"body"`
+	Status  int               `json:"status"`
+	Body    string            `json:"body"`
+	Headers map[string]string `json:"headers"`
 }
 
-// HTTPFetch proxies HTTP requests from the frontend, bypassing webview CORS restrictions.
-func (a *App) HTTPFetch(method string, url string, headers map[string]string, body string) (HTTPResponse, error) {
+// Registry of in-flight proxied requests so the frontend can cancel them
+// (Stop button) instead of waiting for the server to answer.
+var (
+	httpCancelsMu sync.Mutex
+	httpCancels   = make(map[int64]context.CancelFunc)
+)
+
+func (a *App) doHTTPFetch(id int64, method, url string, headers map[string]string, body string) (HTTPResponse, error) {
 	if !strings.HasPrefix(url, "https://") {
 		return HTTPResponse{}, fmt.Errorf("only https URLs are allowed")
 	}
@@ -375,12 +388,26 @@ func (a *App) HTTPFetch(method string, url string, headers map[string]string, bo
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
+	if id != 0 {
+		httpCancelsMu.Lock()
+		httpCancels[id] = cancel
+		httpCancelsMu.Unlock()
+		defer func() {
+			httpCancelsMu.Lock()
+			delete(httpCancels, id)
+			httpCancelsMu.Unlock()
+		}()
+	}
+
 	req, err := http.NewRequestWithContext(ctx, method, url, strings.NewReader(body))
 	if err != nil {
 		return HTTPResponse{}, err
 	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
+	}
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", "ModelField/1.0")
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -393,6 +420,35 @@ func (a *App) HTTPFetch(method string, url string, headers map[string]string, bo
 	if err != nil {
 		return HTTPResponse{}, err
 	}
-	return HTTPResponse{Status: resp.StatusCode, Body: string(data)}, nil
+
+	respHeaders := make(map[string]string)
+	for key := range resp.Header {
+		respHeaders[strings.ToLower(key)] = resp.Header.Get(key)
+	}
+
+	return HTTPResponse{Status: resp.StatusCode, Body: string(data), Headers: respHeaders}, nil
+}
+
+// HTTPFetch proxies HTTP requests from the frontend, bypassing webview CORS restrictions.
+func (a *App) HTTPFetch(method string, url string, headers map[string]string, body string) (HTTPResponse, error) {
+	return a.doHTTPFetch(0, method, url, headers, body)
+}
+
+// HTTPFetchWithID is HTTPFetch registered under an id so it can be
+// cancelled via HTTPCancel while in flight.
+func (a *App) HTTPFetchWithID(id int64, method string, url string, headers map[string]string, body string) (HTTPResponse, error) {
+	return a.doHTTPFetch(id, method, url, headers, body)
+}
+
+// HTTPCancel aborts an in-flight proxied request registered by HTTPFetchWithID.
+func (a *App) HTTPCancel(id int64) bool {
+	httpCancelsMu.Lock()
+	cancel, ok := httpCancels[id]
+	httpCancelsMu.Unlock()
+	if !ok {
+		return false
+	}
+	cancel()
+	return true
 }
 

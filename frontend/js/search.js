@@ -16,7 +16,7 @@ const Search = {
     input.addEventListener('keydown', (e) => this.onKeydown(e));
 
     input.addEventListener('focus', () => {
-      if (input.value.trim()) this.onInput(input.value);
+      this.onInput(input.value);
     });
 
     document.addEventListener('click', (e) => {
@@ -38,10 +38,16 @@ const Search = {
 
   onInput(query) {
     query = query.trim().toLowerCase();
-    if (!query) { this.close(); return; }
 
     this.results = [];
-    this.searchSpecs(query);
+    this.searchActions(query);
+
+    if (!query) {
+      this.selectedIndex = -1;
+      this.renderResults();
+      return;
+    }
+
     this.searchFiles(query);
     this.searchFolders(query);
     this.searchModels(query);
@@ -53,21 +59,38 @@ const Search = {
     this.renderResults();
   },
 
-  searchSpecs(q) {
-    const files = App.state.files || [];
-    files.forEach(f => {
-      if (f.trashed) return;
-      if (f.name.toLowerCase().includes(q) || (f.content || '').toLowerCase().includes(q)) {
-        this.results.push({ type: 'spec', name: f.name + '.md', item: f });
+  _actions: [
+    { id: 'new-file', name: 'New file' },
+    { id: 'run-on', name: 'Run on models' },
+    { id: 'settings', name: 'Open settings' },
+    { id: 'clear-context', name: 'Clear context' },
+    { id: 'history', name: 'View run history' }
+  ],
+
+  searchActions(q) {
+    this._actions.forEach(a => {
+      if (!q || a.name.toLowerCase().includes(q)) {
+        this.results.push({ type: 'action', name: a.name, item: a });
       }
     });
   },
 
   searchFiles(q) {
+    const projectFileNames = new Set((App.state.files || []).filter(f => !f.trashed).map(f => f.name + '.md'));
+
+    (App.state.files || []).forEach(f => {
+      if (f.trashed) return;
+      if (f.name.toLowerCase().includes(q) || (f.content || '').toLowerCase().includes(q)) {
+        this.results.push({ type: 'file', name: f.name + '.md', item: f, stateFile: true });
+      }
+    });
+
     const walk = (entries) => {
       (entries || []).forEach(e => {
         if (!e.isDir && e.name.toLowerCase().includes(q)) {
-          this.results.push({ type: 'file', name: e.name, item: e, path: e.path });
+          if (!projectFileNames.has(e.name)) {
+            this.results.push({ type: 'file', name: e.name, item: e, path: e.path });
+          }
         }
         if (e.isDir) walk(e.children);
       });
@@ -124,10 +147,9 @@ const Search = {
     if (!dropdown) return;
 
     const grouped = {};
-    const order = ['spec', 'file', 'folder', 'model', 'task', 'history'];
-    const labels = { spec: 'Specs', file: 'Files', folder: 'Folders', model: 'Models', task: 'Tasks', history: 'History' };
+    const order = ['action', 'file', 'folder', 'model', 'task', 'history'];
+    const labels = { action: 'Actions', file: 'Files', folder: 'Folders', model: 'Models', task: 'Tasks', history: 'History' };
     const icons = {
-      spec: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
       file: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
       folder: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
       model: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>',
@@ -151,12 +173,11 @@ const Search = {
         let pathHtml = '';
         let actionsHtml = '';
 
-        if (r.type === 'spec') {
-          const project = App.getCurrentProject();
-          pathHtml = `<span class="search-item-path">${project ? project.name : 'Project'}</span>`;
-          actionsHtml = `<button class="search-item-btn" data-action="open-editor" data-index="${r.globalIndex}" title="Abrir no editor">${btnOpen}</button><button class="search-item-btn" data-action="add-context" data-index="${r.globalIndex}" title="Adicionar ao contexto">${btnContext}</button>`;
-        } else if (r.type === 'file') {
-          if (r.path) {
+        if (r.type === 'file') {
+          if (r.stateFile) {
+            const project = App.getCurrentProject();
+            pathHtml = `<span class="search-item-path">${project ? project.name : 'Project'}</span>`;
+          } else if (r.path) {
             const project = App.getCurrentProject();
             let relPath = r.path;
             if (project?.path && r.path.startsWith(project.path)) {
@@ -261,11 +282,28 @@ const Search = {
     this.close();
 
     switch (result.type) {
-      case 'spec':
-        Files.openFile(result.item.id);
+      case 'action': {
+        const id = result.item.id;
+        if (id === 'new-file') {
+          Modals.open('modal-new-file');
+          setTimeout(() => document.getElementById('input-file-name')?.focus(), 100);
+        } else if (id === 'run-on') {
+          Models.showRunModal();
+        } else if (id === 'settings') {
+          Settings.openSettings();
+        } else if (id === 'clear-context') {
+          FileExplorer.clearAll();
+        } else if (id === 'history') {
+          Models.showHistory();
+        }
         break;
+      }
       case 'file':
-        this.showFilePreview(result.item);
+        if (result.stateFile && result.item.id) {
+          Files.openFile(result.item.id);
+        } else {
+          this.showFilePreview(result.item);
+        }
         break;
       case 'folder':
         this.showFolderPreview(result.item);
@@ -290,7 +328,10 @@ const Search = {
   },
 
   addToContext(result) {
-    if (result.type === 'spec') {
+    if (result.type === 'folder') {
+      FileExplorer.selectFolder(result.item.path);
+      Notifications.show(`${result.item.name} folder added to context`);
+    } else if (result.type === 'file' && result.stateFile) {
       FileExplorer.selectSpec(result.item.id);
       Notifications.show(`${result.item.name}.md added to context`);
     } else if (result.type === 'file') {
@@ -344,16 +385,16 @@ const Search = {
       if (isSpec) {
         const file = App.state.files.find(f => f.name === fileEntry.name.replace('.md', ''));
         if (file) {
-          btnEditor.style.display = '';
+          btnEditor.classList.remove('is-hidden');
           btnEditor.onclick = () => {
             Files.openFile(file.id);
             Modals.close('modal-file-preview');
           };
         } else {
-          btnEditor.style.display = 'none';
+          btnEditor.classList.add('is-hidden');
         }
       } else {
-        btnEditor.style.display = 'none';
+        btnEditor.classList.add('is-hidden');
       }
     }
 
@@ -384,7 +425,7 @@ const Search = {
     const btnContext = document.getElementById('btn-folder-preview-context');
     if (btnContext) {
       btnContext.onclick = () => {
-        FileExplorer.selectFile(folderEntry.path);
+        FileExplorer.selectFolder(folderEntry.path);
         Notifications.show(`${folderEntry.name} folder added to context`);
         Modals.close('modal-folder-preview');
       };

@@ -14,7 +14,7 @@ const Notifications = {
 
     setTimeout(() => {
       toast.classList.add('removing');
-      setTimeout(() => toast.remove(), 200);
+      toast.addEventListener('animationend', () => toast.remove(), { once: true });
     }, duration);
   }
 };

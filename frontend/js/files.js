@@ -30,10 +30,8 @@ const Files = {
     }
 
     const nameInput = document.getElementById('input-file-name');
-    const templateSelect = document.getElementById('select-template');
 
     let name = nameInput?.value.trim() || 'untitled';
-    const template = CustomSelect.getValue(templateSelect) || 'blank';
 
     name = name.replace(/\.md$/, '');
     name = name.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-').toLowerCase();
@@ -51,7 +49,7 @@ const Files = {
       id: Date.now().toString(),
       projectId: App.state.currentProject,
       name: finalName,
-      content: Templates[template] || '',
+      content: '',
       created: new Date().toISOString(),
       modified: new Date().toISOString(),
       trashed: false
@@ -61,12 +59,6 @@ const Files = {
     App.saveState();
 
     nameInput.value = '';
-    // Reset custom select to first option (Blank)
-    const firstOption = templateSelect?.querySelector('.custom-select-option');
-    if (firstOption) {
-      CustomSelect.select(templateSelect, firstOption);
-      templateSelect._selectedValue = 'blank';
-    }
     Modals.close('modal-new-file');
 
     this.openFile(file.id);
@@ -261,8 +253,7 @@ const Files = {
       </div>
     `;
 
-    menu.style.left = e.clientX + 'px';
-    menu.style.top = e.clientY + 'px';
+    Modals.positionPopover(menu, e.clientX, e.clientY);
     menu.classList.add('active');
 
     const closeMenu = (ev) => {
@@ -311,8 +302,7 @@ const Files = {
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
-    dropdown.style.left = rect.left + 'px';
-    dropdown.style.top = rect.bottom + 4 + 'px';
+    Modals.positionPopover(dropdown, rect.left, rect.bottom, 4);
     dropdown.classList.add('active');
     overlay.classList.add('active');
 

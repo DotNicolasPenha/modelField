@@ -87,8 +87,7 @@ const Projects = {
     list.appendChild(newBtn);
 
     const rect = e.currentTarget.getBoundingClientRect();
-    dropdown.style.left = rect.left + 'px';
-    dropdown.style.top = rect.bottom + 4 + 'px';
+    Modals.positionPopover(dropdown, rect.left, rect.bottom, 4);
     dropdown.classList.add('active');
     overlay.classList.add('active');
 

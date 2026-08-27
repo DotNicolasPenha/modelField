@@ -64,6 +64,7 @@ const Editor = {
           <span id="cursor-pos">Ln 1, Col 1</span>
         </div>
         <div class="editor-status-right">
+          <span id="usage-summary"></span>
           <span id="line-count">${lineCount} lines</span>
         </div>
       </div>

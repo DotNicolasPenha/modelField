@@ -17,7 +17,6 @@ const FileBrowser = {
   init() {
     document.getElementById('file-browser-filter-all')?.addEventListener('click', () => this.setFilter('all'));
     document.getElementById('file-browser-filter-md')?.addEventListener('click', () => this.setFilter('md'));
-    document.getElementById('file-browser-filter-specs')?.addEventListener('click', () => this.setFilter('specs'));
     document.getElementById('file-browser-filter-trash')?.addEventListener('click', () => this.setFilter('trash'));
   },
 
@@ -26,7 +25,6 @@ const FileBrowser = {
     this.expandedDirs.clear();
     document.getElementById('file-browser-filter-all')?.classList.toggle('active', filter === 'all');
     document.getElementById('file-browser-filter-md')?.classList.toggle('active', filter === 'md');
-    document.getElementById('file-browser-filter-specs')?.classList.toggle('active', filter === 'specs');
     document.getElementById('file-browser-filter-trash')?.classList.toggle('active', filter === 'trash');
     this.render();
   },
@@ -106,7 +104,7 @@ const FileBrowser = {
 
   addToContext(entry) {
     if (entry.isDir) {
-      FileExplorer.selectFile(entry.path);
+      FileExplorer.selectFolder(entry.path);
       Notifications.show(`Pasta "${entry.name}" adicionada ao contexto`);
       return;
     }
@@ -128,7 +126,7 @@ const FileBrowser = {
     const file = App.state.files.find(f => f.id === fileId);
     if (!file) return;
 
-    const confirmed = await Modals.confirm(`Deletar spec "${file.name}.md"? Ela será movida para a lixeira.`);
+    const confirmed = await Modals.confirm(`Deletar "${file.name}.md"? Ele será movido para a lixeira.`);
     if (confirmed) {
       Files.deleteFile(fileId);
     }
@@ -137,35 +135,6 @@ const FileBrowser = {
   restoreSpec(fileId) {
     Files.restoreFile(fileId);
   },
-
-  getVirtualSpecs(entries) {
-    const diskPaths = new Set();
-    const collectPaths = (items) => {
-      items.forEach(e => {
-        if (!e.isDir && e.name.endsWith('.md')) diskPaths.add(e.name);
-        if (e.children) collectPaths(e.children);
-      });
-    };
-    collectPaths(entries);
-
-    const virtualSpecs = [];
-    (App.state.files || []).forEach(f => {
-      if (f.trashed || f.isDiskFile) return;
-      const mdName = f.name + '.md';
-      if (!diskPaths.has(mdName)) {
-        virtualSpecs.push({
-          name: mdName,
-          path: 'virtual://' + f.id,
-          isDir: false,
-          size: (f.content || '').length,
-          modified: f.modified,
-          virtualSpecId: f.id
-        });
-      }
-    });
-    return virtualSpecs;
-  },
-
   renderTrashView() {
     const trashed = App.getTrashedFiles();
     if (trashed.length === 0) {
@@ -199,10 +168,6 @@ const FileBrowser = {
       if (this.filter === 'md') {
         if (!entry.isDir && !entry.name.endsWith('.md')) return;
         if (entry.isDir && !this.hasMdDescendant(entry)) return;
-      }
-      if (this.filter === 'specs') {
-        if (!entry.isDir) return;
-        if (!this.hasMdDescendant(entry)) return;
       }
 
       const isExpanded = this.expandedDirs.has(entry.path);
@@ -268,23 +233,6 @@ const FileBrowser = {
 
     let entriesHtml = this.renderEntries(tree, 0);
 
-    if (this.filter === 'specs') {
-      const virtualSpecs = this.getVirtualSpecs(tree);
-      virtualSpecs.forEach(vs => {
-        const actions = `<div class="file-browser-item-actions">
-          <button class="file-browser-item-action" data-action="open-editor" title="Abrir no editor">${this.icons.open}</button>
-          <button class="file-browser-item-action" data-action="add-context" title="Adicionar ao contexto">${this.icons.plus}</button>
-          <button class="file-browser-item-action file-browser-item-action-danger" data-action="trash-spec" title="Deletar">${this.icons.trash}</button>
-        </div>`;
-        entriesHtml += `<div class="file-browser-item" data-virtual-spec="${vs.virtualSpecId}" data-is-dir="false" data-is-spec="true" style="padding-left: 24px;">
-          <span class="file-browser-spacer"></span>
-          <span class="file-browser-item-icon">${this.icons.spec}</span>
-          <span class="file-browser-item-name">${vs.name}</span>
-          ${actions}
-        </div>`;
-      });
-    }
-
     if (!entriesHtml) {
       list.innerHTML = '<div class="checklist-empty">No files found</div>';
       return;
@@ -327,7 +275,7 @@ const FileBrowser = {
           } else if (action === 'add-context') {
             FileExplorer.selectSpec(virtualSpecId);
             const file = App.state.files.find(f => f.id === virtualSpecId);
-            Notifications.show(`${file?.name || 'spec'}.md adicionado ao contexto`);
+            Notifications.show(`${file?.name || 'file'}.md adicionado ao contexto`);
           } else if (action === 'trash-spec') {
             this.trashSpec(virtualSpecId);
           }
